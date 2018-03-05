@@ -13,67 +13,95 @@ import java.net.*;
  */
 public class Server 
 {
-    private String message;    //message received from the client
-    private String MESSAGE;    //uppercase message send to the client
     private ServerSocket serverSocket;
-    private Socket clientSocket;
-    private ObjectInputStream in;	//stream read from the socket
-    private ObjectOutputStream out;    //stream write to the socket
 
-    private void start(String[] args)
+    private void start(String[] args) throws Exception
     {
         int port = Integer.parseInt(args[0]);
-
-        try 
+        
+        try
         {
-            // TODO: Put outside
             serverSocket = new ServerSocket(port);
-            // Wait until a single client requesting
-            // TODO: put multiple
-            clientSocket = serverSocket.accept();
-            System.out.println("Got a connection from " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
-            out = new ObjectOutputStream(clientSocket.getOutputStream());
-            out.flush();
-            in = new ObjectInputStream(clientSocket.getInputStream());
-            // PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-            // BufferedReader in = new BufferedReader(
-            //     new InputStreamReader(clientSocket.getInputStream()));
-            try
+            int count = 0;
+            while(true)
             {
-                while(true)
-                {
-                    String message = (String) in.readObject();
-                    System.out.println("RECEIVE: " + message);
-
-                }
+                ClientSocketHandler h = new ClientSocketHandler(serverSocket.accept(), count);
+                h.start();
+                count += 1;
             }
-            catch(ClassNotFoundException classnot)
-            {
-                System.err.println("Data received in unknown format");
-            }
-            
         }
-        catch(IOException ioException)
-        {
-			System.out.println("Disconnect with Client");
-		}
         finally
         {
-			//Close connections
-            try
-            {
-				in.close();
-				out.close();
-                serverSocket.close();
-                clientSocket.close();
-			}
-			catch(IOException ioException){
-				System.out.println("Disconnect with Client ");
-			}
-		}
+            serverSocket.close();            
+        }
     }
 
-    public static void main( String[] args )
+
+    private static class ClientSocketHandler extends Thread 
+    {
+        private Socket clientSocket;
+        private ObjectInputStream in;	//stream read from the socket
+        private ObjectOutputStream out;    //stream write to the socket
+        private String message;    //message received from the client
+        private String MESSAGE;    //uppercase message send to the client
+        private int clientID;
+
+        public ClientSocketHandler(Socket connection, int no) 
+        {
+            this.clientSocket = connection;
+            this.clientID = no;
+        }
+
+        public void run() 
+        {
+            try 
+            {
+                // Wait until a single client requesting
+                System.out.println("Got a connection from " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
+                out = new ObjectOutputStream(clientSocket.getOutputStream());
+                out.flush();
+                in = new ObjectInputStream(clientSocket.getInputStream());
+                // PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                // BufferedReader in = new BufferedReader(
+                //     new InputStreamReader(clientSocket.getInputStream()));
+                try
+                {
+                    while(true)
+                    {
+                        String message = (String) in.readObject();
+                        System.out.println("RECEIVE: " + message + " from " + Integer.toString(clientID));
+    
+                    }
+                }
+                catch(ClassNotFoundException classnot)
+                {
+                    System.err.println("Data received in unknown format");
+                }
+                
+            }
+            catch(IOException ioException)
+            {
+                System.out.println("Disconnect with Client");
+            }
+            finally
+            {
+                //Close connections
+                try
+                {
+                    in.close();
+                    out.close();
+                    clientSocket.close();
+                }
+                catch(IOException ioException)
+                {
+                    System.out.println("Disconnect with Client ");
+                }
+            }
+        }
+    }
+
+
+    public static void main(String[] args) throws Exception
     {
         if (args.length < 1)
         {
