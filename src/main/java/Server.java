@@ -11,8 +11,8 @@ import java.net.Socket;
 public class Server {
 	private ServerSocket serverSocket;
 
-	private void start(String[] args) throws Exception {
-		int port = Integer.parseInt(args[0]);
+	public void start(Integer port) throws Exception {
+		// int port = Integer.parseInt(args[0]);
 
 		try {
 			serverSocket = new ServerSocket(port);
@@ -82,7 +82,7 @@ public class Server {
 			return;
 		}
 		Server server = new Server();
-		server.start(args);
+		server.start(Integer.parseInt(args[0]));
 
 		// System.out.println( "Hello World!" );
 	}
