@@ -18,9 +18,8 @@ public class StartRemotePeers {
 
 	private static final String scriptPrefix = "peerProcess ";
 
+	static ArrayList<RemotePeerInfo> peerList = new ArrayList<>();
 	public static void main(String[] args) {
-
-		ArrayList<RemotePeerInfo> peerList = new ArrayList<>();
 
 		String ciseUser = "Ravi Poloju"; // change with your CISE username
 		String st;
@@ -112,5 +111,4 @@ public class StartRemotePeers {
 
 		}
 	}
-
 }
