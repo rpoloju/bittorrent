@@ -13,7 +13,8 @@ public class peerProcess
     private String hostname;
     private Boolean hasfile;
     private ArrayList<Boolean> bitfield;
-    private Server listener;
+    // private int bitfield;
+    private DuplexServer listener;
     private ArrayList<Client> senders;
 
     public peerProcess()
@@ -26,20 +27,28 @@ public class peerProcess
         // read Common.cfg
         peerId =  Integer.parseInt(args[0]);
         // load in peer meta data here
-        port = 6008;
+        port = 6000 + peerId;
         hostname = "localhost";
         hasfile = true;
         // we have 306 pieces (FileSize // PieceSize)
-        if (hasfile) { bitfield = new ArrayList<>(Collections.nCopies(306, true)); }
-        else { bitfield = new ArrayList<>(Collections.nCopies(306, false));}
-
+        // if (hasfile) { bitfield = 0b1111111111111111; }//{ bitfield = Integer.MAX_VALUE; }
+        // else { bitfield = 0b0000000000000000; }
+        if (hasfile) { bitfield = new ArrayList<Boolean>(Collections.nCopies(306, true)); }
+        else { bitfield = new ArrayList<Boolean>(Collections.nCopies(306, false));}
         // start server to listen for messages. 
-        listener = new Server();
-        listener.start(port);
-        
+        listener = new DuplexServer(port);
+        System.out.println("Initiated listener");
+
         if (peerId > 1001)
         {
-            // start clients to talk with previous peers
+            int peers_to_connect = peerId - 1001;
+            for (int i = 0; i < peers_to_connect; i++)
+            {
+                // start clients to talk with previous peers
+                listener.init_socket(hostname, 6000 + 1001 + i, 0);
+                // System.out.println("Broadcasting...");
+                // listener.broadcast_to_peers("I am here");
+            }           
         }
     }
 
