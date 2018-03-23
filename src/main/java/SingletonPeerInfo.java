@@ -16,7 +16,7 @@ class SingletonPeerInfo
     private SingletonPeerInfo()
     {
         File file = new File("PeerInfo.cfg");
-        String arr[] = new String[4]; int i=0;
+        int i=0;
         Scanner in = null;
         try {
             in = new Scanner(file);
