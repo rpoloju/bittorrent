@@ -34,7 +34,7 @@ public class StartRemotePeers {
 			while ((st = in.readLine()) != null) {
 
 				String[] tokens = st.split("\\s+");
-				peerList.add(new RemotePeerInfo(tokens[0], tokens[1], tokens[2]));
+				peerList.add(new RemotePeerInfo(Integer.parseInt(tokens[0]), tokens[1], Integer.parseInt(tokens[2]), Integer.parseInt((tokens[3]))));
 			}
 			in.close();
 

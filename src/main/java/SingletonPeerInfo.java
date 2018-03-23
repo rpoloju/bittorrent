@@ -5,11 +5,12 @@ class SingletonPeerInfo
     // static variable single_instance of type SingletonPeerInfo
     private static SingletonPeerInfo single_instance = null;
 
+    HashMap<Integer, RemotePeerInfo> peerInfoMap = new HashMap<>();
     // variable of type String
-    public static int peerID;
-    public static String host;
-    public static int portNumber;
-    public static int fileStatus;
+    public static int peerID[] = new int[6];
+    public static String host[] = new String[6];
+    public static int portNumber[] = new int[6];
+    public static int fileStatus[] = new int[6];
 
     // private constructor restricted to this class itself
     private SingletonPeerInfo()
@@ -23,13 +24,13 @@ class SingletonPeerInfo
             e.printStackTrace();
         }
         while(in.hasNext()) {
-            arr[i] = in.next();
+            peerID[i] = Integer.parseInt(in.next());
+            host[i] = in.next();
+            portNumber[i] = Integer.parseInt(in.next());
+            fileStatus[i] = Integer.parseInt(in.next());
+            peerInfoMap.put(peerID[i], new RemotePeerInfo(peerID[i], host[i], portNumber[i], fileStatus[i]));
             i++;
         }
-        peerID = Integer.parseInt(arr[0]);
-        host = arr[1];
-        portNumber = Integer.parseInt(arr[2]);
-        fileStatus = Integer.parseInt(arr[3]);
     }
 
     //static method to create instance of SingletonPeerInfo class

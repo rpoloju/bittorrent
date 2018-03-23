@@ -9,38 +9,47 @@
 
 public class RemotePeerInfo {
 
-	public String peerId;
+	public int peerId;
 	public String peerHostName;
-	public String peerPortNumber;
+	public int peerPortNumber;
+	public int hasFile_or_not;
 
-	public RemotePeerInfo(String peerId, String peerHostName, String peerPortNumber) {
+	public RemotePeerInfo(int peerId, String peerHostName, int peerPortNumber, int hasFile_or_not) {
 		this.peerId = peerId;
 		this.peerHostName = peerHostName;
 		this.peerPortNumber = peerPortNumber;
+		this.hasFile_or_not = hasFile_or_not;
 	}
 
-	public String getPeerId() {
+	public int getPeerId() {
 		return peerId;
-	}
-
-	public void setPeerId(String peerId) {
-		this.peerId = peerId;
 	}
 
 	public String getPeerHostName() {
 		return peerHostName;
 	}
 
+	public int getPeerPortNumber() {
+		return peerPortNumber;
+	}
+
+	public int getHasFile_or_not() {
+		return hasFile_or_not;
+	}
+
+	public void setPeerId(int peerId) {
+		this.peerId = peerId;
+	}
+
 	public void setPeerHostName(String peerHostName) {
 		this.peerHostName = peerHostName;
 	}
 
-	public String getPeerPortNumber() {
-		return peerPortNumber;
-	}
-
-	public void setPeerPortNumber(String peerPortNumber) {
+	public void setPeerPortNumber(int peerPortNumber) {
 		this.peerPortNumber = peerPortNumber;
 	}
-	
+
+	public void setHasFile_or_not(int hasFile_or_not) {
+		this.hasFile_or_not = hasFile_or_not;
+	}
 }
