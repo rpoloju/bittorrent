@@ -13,7 +13,7 @@ import java.util.Map;
 
 public class MessageType {
 
-	static Map<Integer, String> messageType = new HashMap<>();
+	static Map<Integer, String> messageType = new HashMap<Integer, String>();
 
 	MessageType() {
 		messageType.put(0, "CHOKE");
@@ -24,6 +24,7 @@ public class MessageType {
 		messageType.put(5, "BITFIELD");
 		messageType.put(6, "REQUEST");
 		messageType.put(7, "PIECE");
+		messageType.put(8, "HANDSHAKE");
 	}
 
 	public static String getTypeFromMessageValue(int messageValue) {
@@ -68,6 +69,8 @@ public class MessageType {
 			return new Request();
 		else if (type.toUpperCase().equals("PIECE"))
 			return new Piece();
+		else if (type.toUpperCase().equals("HANDSHAKE"))
+			return new HandShake(0);
 		else {
 			throw new ClassNotFoundException("Message of type " + type + " not found");
 		}
