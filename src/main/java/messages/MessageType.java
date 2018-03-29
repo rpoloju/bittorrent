@@ -8,26 +8,27 @@
 
 package messages;
 
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 
 public class MessageType {
 
-	static Map<Integer, String> messageType = new HashMap<Integer, String>();
+	static Map<Byte, String> messageType = new HashMap<Byte, String>();
 
 	MessageType() {
-		messageType.put(0, "CHOKE");
-		messageType.put(1, "UNCHOKE");
-		messageType.put(2, "INTERESTED");
-		messageType.put(3, "NOTINTERESTED");
-		messageType.put(4, "HAVE");
-		messageType.put(5, "BITFIELD");
-		messageType.put(6, "REQUEST");
-		messageType.put(7, "PIECE");
-		messageType.put(8, "HANDSHAKE");
+		messageType.put((byte) 0, "CHOKE");
+		messageType.put((byte) 1, "UNCHOKE");
+		messageType.put((byte) 2, "INTERESTED");
+		messageType.put((byte) 3, "NOTINTERESTED");
+		messageType.put((byte) 4, "HAVE");
+		messageType.put((byte) 5, "BITFIELD");
+		messageType.put((byte) 6, "REQUEST");
+		messageType.put((byte) 7, "PIECE");
+		messageType.put((byte) 8, "HANDSHAKE");
 	}
 
-	public static String getTypeFromMessageValue(int messageValue) {
+	public static String getTypeFromMessageValue(byte messageValue) {
 		return messageType.get(messageValue);
 	}
 
@@ -64,7 +65,7 @@ public class MessageType {
 		else if (type.toUpperCase().equals("HAVE"))
 			return new Have();
 		else if (type.toUpperCase().equals("BITFIELD"))
-			return new BitField();
+			return new BitField(new BitSet());
 		else if (type.toUpperCase().equals("REQUEST"))
 			return new Request();
 		else if (type.toUpperCase().equals("PIECE"))
