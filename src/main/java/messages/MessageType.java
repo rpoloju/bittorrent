@@ -14,7 +14,7 @@ import java.util.Map;
 
 public class MessageType {
 
-	static Map<Byte, String> messageType = new HashMap<Byte, String>();
+	static Map<Byte, String> messageType = new HashMap<>();
 
 	MessageType() {
 		messageType.put((byte) 0, "CHOKE");
