@@ -36,8 +36,8 @@ public class MessageType {
 	 * type field, and a message payload with variable size. So the default message
 	 * length would be 1 which is occupied by message type
 	 */
-	public int message_length = 1;
-	public String message_type = null;
+	public int message_length = 1; // can be in the range from 1 to 5 inclusive
+	public String message_type = "";
 	public byte[] message_payload = null;
 
 	public int getLength() {
