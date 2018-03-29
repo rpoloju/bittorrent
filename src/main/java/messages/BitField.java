@@ -1,6 +1,12 @@
 package messages;
 
-public class BitField extends MessageType {
+import java.util.BitSet;
 
+public class BitField extends MessageType {
+	public BitField(BitSet bits) {
+		super.message_type = "BITFIELD";
+		super.message_payload = bits.toByteArray();
+		super.message_length += super.message_payload.length; //Variable
+	}
 
 }
