@@ -5,6 +5,7 @@
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 public class peerProcess
 {
@@ -54,9 +55,9 @@ public class peerProcess
             {
                 // start clients to talk with previous peers
                 RemotePeerInfo prev_peer = peer_cfg.peerInfoMap.get(1001 + i);
-                listener.init_socket(prev_peer.getPeerHostName(), prev_peer.getPeerPortNumber(), 1001 + i);
+                listener.init_socket(prev_peer.getPeerHostName(), prev_peer.getPeerPortNumber());
                 // System.out.println("Broadcasting...");
-                // listener.broadcast_to_peers("I am here");
+                listener.broadcast_to_peers("I am here at " + Integer.toString(1001 + i));
             }           
         }
     }

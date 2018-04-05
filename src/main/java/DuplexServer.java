@@ -1,153 +1,178 @@
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketOption;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class DuplexServer
 {   
-    private ServerSocketHandler s;
-    private ArrayList<ClientSocketHandler> clients = new ArrayList<>(); // change this to map of peerID -> ClientSocketHandler
+    private ServerHandler s;
+    private ArrayList<ClientHandler> c;
     
     public DuplexServer(int port) throws Exception
     {   
-        s = new ServerSocketHandler(port);
+        s = new ServerHandler(port);
         s.start();
+        c = new ArrayList<>();
     }
 
-    public void broadcast_to_peers(String message)
+    public void broadcast_to_peers(String message) throws IOException
     {
-        for (ClientSocketHandler client : clients)
-        {
-            client.sendMessage(message);
+        for(ClientHandler ch : c) {
+            ch.write(message);
         }
     }
 
-    public void init_socket(String host_name, int port, int id) throws UnknownHostException, IOException
+    public void init_socket(String host_name, int port) throws IOException
     {
-        Socket s = new Socket(host_name, port);
-        ClientSocketHandler h = new ClientSocketHandler(s, id);
-        clients.add(h);
-        h.start();
+        System.out.println("Creating a new client channel");
+        
+        ClientHandler ch = new ClientHandler();
+        ch.connect(host_name, port);
+        ch.start();
+        c.add(ch);
     }
 
     /////////////////////////
     // Class to collect incoming client connections and save into clients List. 
-    private class ServerSocketHandler extends Thread 
+    // Inspired by https://github.com/khanhhua/full-duplex-chat
+    private class ServerHandler extends Thread 
     {
-        private ServerSocket serverSocket;
-        private int port;
+        private ServerSocketChannel serverChannel;
+        ArrayList<SocketChannel> clients;
+        Selector selector;
 
-        public ServerSocketHandler(int port) throws Exception
+        public ServerHandler(int port) throws Exception
         {
-            this.port = port;
-            this.serverSocket = new ServerSocket(port);
+            serverChannel = ServerSocketChannel.open();
+            serverChannel.configureBlocking(false);
+            serverChannel.socket().bind(new InetSocketAddress(port));
+
+            selector = Selector.open();
+            serverChannel.register(selector, SelectionKey.OP_ACCEPT);
         }
 
         public void run() 
         {
-            try 
-            {
-                int count = 0;
-                while (true) 
-                {
-                    // getting connections and saving to list
-                    ClientSocketHandler h = new ClientSocketHandler(serverSocket.accept(), count);
-                    clients.add(h);
-                    h.start();
-                    count += 1;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            finally 
-            {
+            clients = new ArrayList<>();
+
+            Iterator<SelectionKey> it;
+            while (serverChannel.isOpen()) {
                 try {
-                    serverSocket.close();                    
+                    if (selector.select() != 0) {
+                        it = selector.selectedKeys().iterator();
+                        while (it.hasNext())
+                        {
+                            SelectionKey key = it.next();
+                            procKey(key);
+                            it.remove();
+                        }
+
+                    }
                 } catch(IOException e) {
                     e.printStackTrace();
                 }
             }
         }
+
+        private void procKey(SelectionKey key) throws IOException {
+            if (key.isAcceptable()) {
+                SocketChannel channelClient = serverChannel.accept();
+                channelClient.configureBlocking(false);
+                channelClient.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+    
+                System.out.println("Client is accepted");
+    
+                clients.add(channelClient);
+            } else if (key.isReadable()) {
+                SocketChannel channelClient = (SocketChannel) key.channel();
+                if (!channelClient.isOpen()) {
+                    System.out.println("Channel terminated by client");
+                }
+                ByteBuffer buffer = ByteBuffer.allocate(80);
+                buffer.clear();
+                channelClient.read(buffer);
+                if (buffer.get(0) == 0) {
+                    System.out.println("Nothing to read.");
+                    channelClient.close();
+    
+                    clients.remove(channelClient);
+                    return;
+                }
+    
+                System.out.printf("Client says: %s\n", new String(buffer.array()));
+            } else if (key.isWritable()) {
+
+            }
+        }
     }
     
     /////////////////////////
-    // Transmitter and threaded receiver for clients
-    private class ClientSocketHandler extends Thread {
-        private Socket clientSocket;
-        private int clientID;
-        private ReceptionThread rc;
-        
-        private class ReceptionThread extends Thread
-        {
-            public ReceptionThread() {
-                // System.out.println(this.toString());
-            }
+    // Transmitter and threaded receiver for a client
+    public class ClientHandler extends Thread {
+        SocketChannel channel;
+        Selector selector;
+
+        public void connect(String host_name, int port) throws IOException {
+            InetSocketAddress address = new InetSocketAddress(host_name, port);
     
-            public void run()
-            {
+            channel = SocketChannel.open(address);
+            channel.configureBlocking(false);
+            selector = Selector.open();
+    
+            channel.register(selector, SelectionKey.OP_READ);
+        }
+    
+        @Override
+        public void run() {
+            Iterator<SelectionKey> it;
+            while (channel.isConnected()) {
                 try {
-                    while (true) {
-                        ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());                
-                        String message = (String) in.readObject();
-                        System.out.println("RECEIVE: " + message + " from " + Integer.toString(clientID));
-                        // deliver to class
-                        // ---- 
-                        // send response
-                        // sendMessage(response)
+                    if (selector.select() != 0) {
+                        it = selector.selectedKeys().iterator();
     
+                        while (it.hasNext()) {
+                            SelectionKey key = it.next();
+    
+                            handleKey(key);
+    
+                            it.remove();
+                        }
                     }
-                } catch (ClassNotFoundException classnot) {
-                    System.err.println("Data received in unknown format");
                 } catch (IOException e) {
-                    System.err.println(e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }
-
-        public ClientSocketHandler(Socket connection, int no) {
-            this.clientSocket = connection;
-            this.clientID = no;
-        }
-
-        // send a message to the output stream
-        public void sendMessage(String msg) {
-            try {
-                ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-                out.flush();
-                // stream write the message
-                out.writeObject(msg);
-                out.flush();
-            } catch (IOException ioException) {
-                System.out.println(ioException.getMessage());
-            }
-        }
-
-        public void run() 
-        {
-            try {
-                // Wait until a single client requesting
-                System.out.println(
-                        "Got a connection from " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
-                rc = new ReceptionThread();
-                // rc.start();
-
-                // PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-                // BufferedReader in = new BufferedReader(
-                // new InputStreamReader(clientSocket.getInputStream()));
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-            } finally {
-                // Close connections
-                try {
-                    if (clientSocket != null) { clientSocket.close(); }
-                } catch (IOException ioException) {
-                    System.out.println(ioException.getMessage());
+    
+        private void handleKey(SelectionKey key) throws IOException {
+            if (key.isReadable()) {
+                ByteBuffer buffer = ByteBuffer.allocate(80);
+                buffer.clear();
+                channel.read(buffer);
+                if (buffer.get(0) == 0) {
+                    return;
                 }
+    
+                System.out.printf("Server says: %s \n", new String(buffer.array()));
             }
+        }
+    
+        public void write(String input) throws IOException {
+            channel.write(ByteBuffer.wrap(input.getBytes()));
         }
     }
-
 }
