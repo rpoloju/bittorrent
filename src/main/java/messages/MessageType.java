@@ -8,9 +8,15 @@
 
 package messages;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
+
+import configuration.LogConfig;
+import io.IOStreamReader;
+import io.IOStreamWriter;
 
 public class MessageType {
 
@@ -30,6 +36,28 @@ public class MessageType {
 
 	public static String getTypeFromMessageValue(byte messageValue) {
 		return messageType.get(messageValue);
+	}
+
+	public static Byte getCodeFromMessageType(String messageType) {
+		switch (messageType.toUpperCase()) {
+		case "CHOKE":
+			return 0;
+		case "UNCHOKE":
+			return 1;
+		case "INTERESTED":
+			return 2;
+		case "UNINTERESTED":
+			return 3;
+		case "HAVE":
+			return 4;
+		case "BITFIELD":
+			return 5;
+		case "REQUEST":
+			return 6;
+		case "PIECE":
+			return 7;
+		}
+		return null;
 	}
 
 	/*
@@ -76,6 +104,30 @@ public class MessageType {
 			throw new ClassNotFoundException("Message of type " + type + " not found");
 		}
 
+	}
+
+	// Method to read from OubjectInputStream
+	public void read(IOStreamReader ioStreamReader, int length) throws IOException {
+		if (length > 0) {
+			message_payload = new byte[length];
+			if (message_payload != null && message_payload.length > 0)
+				ioStreamReader.readFully(message_payload, 0, length);
+			else {
+				LogConfig.getLogRecord().debugLog("Payload is empty");
+				throw new IOException("Payload is empty");
+			}
+		}
+	}
+
+	// Method to write to ObjectOutputStream
+	public void write(IOStreamWriter ioStreamWriter) throws IOException {
+		LogConfig.getLogRecord().debugLog("writing message");
+		byte buf[] = ByteBuffer.allocate(4 + message_length).putInt(message_length).array();
+		buf[4] = getCodeFromMessageType(this.message_type);
+		if (message_payload != null && message_payload.length > 0) {
+			System.arraycopy(message_payload, 0, buf, 5, message_payload.length);
+		}
+		ioStreamWriter.write(buf);
 	}
 
 }

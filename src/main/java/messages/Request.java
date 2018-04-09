@@ -12,4 +12,9 @@ public class Request extends MessageType {
 		super.message_length += super.message_payload.length;
 	}
 
+	public int getRequestIndex() {
+		int x = java.nio.ByteBuffer.wrap(super.message_payload).getInt();
+		return x;
+	}
+
 }

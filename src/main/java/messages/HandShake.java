@@ -1,6 +1,10 @@
 package messages;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import configuration.LogConfig;
+import io.IOStreamWriter;
 
 public class HandShake extends MessageType {
 	public String handshakeHeader;
@@ -23,5 +27,19 @@ public class HandShake extends MessageType {
 		System.arraycopy(ByteBuffer.allocate(4).putInt(peerId).array(), 0, super.message_payload, 28, 4);// last 4 bytes
 
 	}
+
+	public int getpeerId() {
+		return this.peerId;
+	}
 	
+	@Override
+	public void write(IOStreamWriter out) throws IOException {
+		LogConfig.getLogRecord().debugLog("writing handshake message");
+		
+		if (message_payload != null && message_payload.length > 0)
+			out.write(message_payload, 0, message_payload.length);
+
+		LogConfig.getLogRecord().debugLog("done writing");
+	}
+
 }

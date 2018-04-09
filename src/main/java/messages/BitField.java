@@ -8,5 +8,9 @@ public class BitField extends MessageType {
 		super.message_payload = bits.toByteArray();
 		super.message_length += super.message_payload.length; //Variable
 	}
+	
+	public BitSet getBitSet(){
+		return BitSet.valueOf(super.message_payload);
+	}
 
 }
