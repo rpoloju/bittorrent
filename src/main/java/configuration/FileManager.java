@@ -1,4 +1,4 @@
-package filemanagement;
+package configuration;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,21 +8,14 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
 
-import configuration.CommonConfig;
-import configuration.Initialization;
-import configuration.Peer;
-import configuration.PeerInfoConfig;
-import handler.PeerHandler;
-import configuration.LogConfig;
-
 public class FileManager implements Initialization {
 	private int peerId;
 	private PeerInfoConfig peerInfo;
 	private CommonConfig cfg;
 	public int noOfSplits;
 	private Peer peer;
-	private FileSplit fileSplit;
-	private FileMerge fileMerge;
+	private Splitter fileSplit;
+	private Merger fileMerge;
 	private BitSet availableParts;
 
 	public FileManager(int peerId, PeerInfoConfig peerInfo, CommonConfig cmnCfg) {
@@ -49,8 +42,8 @@ public class FileManager implements Initialization {
 
 		// clear previous folders if any and create new folders
 		createPeerFolder();
-		fileSplit = new FileSplit(peerId, noOfSplits, cfg);
-		fileMerge = new FileMerge(peerId, noOfSplits, cfg.fileName);
+		fileSplit = new Splitter(peerId, noOfSplits, cfg);
+		fileMerge = new Merger(peerId, noOfSplits, cfg.fileName);
 		fileMerge.initialize();
 		// available parts
 		this.availableParts = new BitSet(noOfSplits);
@@ -59,8 +52,6 @@ public class FileManager implements Initialization {
 	}
 
 	private void generateSplitsIfHave() {
-		// if the peer has file
-		// split the file into pieces
 		if (peer.hasFile) {
 			fileSplit.splitFile();
 			getAvailablePartsFromFilePieces();
@@ -88,14 +79,14 @@ public class FileManager implements Initialization {
 
 	public byte[] getBytefromtheIndex(int index) {
 		String splitDirectoryPath = System.getProperty("user.dir") + "/peer_" + peerId;
-		String splitFileName = index + "_" + cfg.fileName;
+		String splitFileName = "part_" + index + "_" + cfg.fileName;
 		File file = new File(splitDirectoryPath + "/" + splitFileName);
 		return getByteArrayFromFile(file);
 	}
 
 	public void savePiece(int index, byte[] buf) {
 		String splitDirectoryPath = System.getProperty("user.dir") + "/peer_" + peerId;
-		String splitFileName = index + "_" + cfg.fileName;
+		String splitFileName = "part_" + index + "_" + cfg.fileName;
 		File file = new File(splitDirectoryPath + "/" + splitFileName);
 		file.getParentFile().mkdirs();
 		FileOutputStream outFile = null;
@@ -149,7 +140,7 @@ public class FileManager implements Initialization {
 			if (f.isFile()) {
 				String[] n = f.getName().split("_");
 				if (n.length > 1) {
-					int pieceIndex = Integer.parseInt(n[0]);
+					int pieceIndex = Integer.parseInt(n[1]);
 					if (pieceIndex >= 0)
 						this.availableParts.set(pieceIndex);
 				}

@@ -1,4 +1,4 @@
-package handler;
+package configuration;
 
 public enum ConnectionState {
 	initiated,

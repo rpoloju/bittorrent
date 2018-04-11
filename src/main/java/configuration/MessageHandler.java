@@ -1,4 +1,4 @@
-package handler;
+package configuration;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -6,9 +6,6 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Random;
 
-import configuration.LogConfig;
-import configuration.Peer;
-import filemanagement.FileManager;
 import messages.BitField;
 import messages.Have;
 import messages.Interested;
@@ -52,21 +49,25 @@ public class MessageHandler {
 				byte[] b = ByteBuffer.allocate(4).putInt(index).array();
 				return new Request(b);
 			}
+			
 		} else if (msg.message_type.toUpperCase().equals("CHOKE")) {
 			this.phandler.getPeer(remotepeerID).RemoteChoke();
 			LogConfig.getLogRecord().choked(remotepeerID);
+			
 		} else if (msg.message_type.toUpperCase().equals("INTERESTED")) {
 			// should add remotepeer in the list of preferred peers
 			LogConfig.getLogRecord().receivedInterested(remotepeerID);
 			this.phandler.addPreferredPeer(remotepeerID);
 			LogConfig.getLogRecord().changeOfPrefereedNeighbors(this.phandler.getPreferredPeers());
 			return null;
+			
 		} else if (msg.message_type.toUpperCase().equals("NOTINTERESTED")) {
 			// should remove remotepeer in the list of preferred peers
 			LogConfig.getLogRecord().receivedNotInterested(remotepeerID);
 			this.phandler.removePreferredPeer(remotepeerID);
 			LogConfig.getLogRecord().changeOfPrefereedNeighbors(this.phandler.getPreferredPeers());
 			return null;
+			
 		} else if (msg.message_type.toUpperCase().equals("HAVE")) {
 			Have h = (Have) msg;
 			int index = h.getpieceIndex();
@@ -76,21 +77,26 @@ public class MessageHandler {
 			required = selfpeer.getRequiredPart(remotepeer.availableParts);
 			if (required.get(index)) {
 				return new Interested(); // interesting piece
+				
 			} else {
 				return new NotInterested(); // already have the piece
 			}
+			
 		} else if (msg.message_type.toUpperCase().equals("BITFIELD")) {
 			BitField bf = (BitField) msg;
 			this.phandler.getPeer(remotepeerID).setparts(bf.getBitSet());
 			LogConfig.getLogRecord().debugLog("Bitfield recieved :" + bf.getBitSet() + "from peer:" + remotepeerID);
 			if (selfpeer.getRequiredPart(bf.getBitSet()).isEmpty()) {
 				return new NotInterested();
+				
 			} else {
 				return new Interested();
 			}
+			
 		} else if (msg.message_type.toUpperCase().equals("REQUEST")) {
 			Request r = (Request) msg;
 			return new Piece(r.message_payload, fmgr.getBytefromtheIndex(r.getRequestIndex()));
+			
 		} else if (msg.message_type.toUpperCase().equals("PIECE")) {
 			Piece p = (Piece) msg;
 			int i = p.getpieceIndex();
@@ -106,11 +112,13 @@ public class MessageHandler {
 				byte[] b = ByteBuffer.allocate(4).putInt(inx).array();
 				return new Request(b);
 			}
+			
 		} else if (msg.message_type.toUpperCase().equals("HANDSHAKE")) {
 			// after handshake get the bitfield of selfpeer and send it to remote
 			LogConfig.getLogRecord()
 					.debugLog("Sending bitfield of parts: " + selfpeer.availableParts + "to peers:" + remotepeerID);
 			MESSAGE = new BitField(selfpeer.availableParts);
+			
 		} else {
 			LogConfig.getLogRecord().debugLog("Illegal Type of message recieved");
 		}

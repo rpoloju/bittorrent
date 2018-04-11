@@ -1,9 +1,4 @@
-package scheduler;
-
-import handler.PeerHandler;
-import handler.SocketConnectionHandler;
-import configuration.LogConfig;
-import configuration.Peer;
+package configuration;
 
 import java.util.List;
 import java.util.Random;

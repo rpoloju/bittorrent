@@ -1,4 +1,4 @@
-package scheduler;
+package configuration;
 
 import java.util.Comparator;
 import java.util.HashSet;
@@ -8,9 +8,6 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.TimerTask;
 
-import configuration.Peer;
-import handler.PeerHandler;
-import handler.SocketConnectionHandler;
 import messages.Choke;
 import messages.UnChoke;
 

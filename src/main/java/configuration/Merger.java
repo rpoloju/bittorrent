@@ -1,23 +1,20 @@
-package filemanagement;
+package configuration;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 
-import configuration.Initialization;
-import configuration.LogConfig;
-
 /* FileMerge takes name of the file to while all the split files should be merged
  * initProperties() - takes output file name and create cfg object
  * mergeFiles() - looks into splitParts folder reads each file and writes into output file
  */
-public class FileMerge implements Initialization {
+public class Merger implements Initialization {
 	public File outFile = null;
 	public String outFileName = null;
 	private int noOfSplits;
 	private int peerId;
 
-	public FileMerge(int peerId, int noOfSplits, String outputFileName) {
+	public Merger(int peerId, int noOfSplits, String outputFileName) {
 		this.peerId = peerId;
 		this.noOfSplits = noOfSplits;
 		this.outFileName = outputFileName;
@@ -30,7 +27,7 @@ public class FileMerge implements Initialization {
 	 * given value or not etc
 	 */
 
-	public FileMerge(String string) {
+	public Merger(String string) {
 		outFileName = string;
 		outFile = new File(System.getProperty("user.dir") + "/peer_" + peerId + "/" + outFileName);
 	}
@@ -52,7 +49,7 @@ public class FileMerge implements Initialization {
 
 			String splitDirectoryPath = System.getProperty("user.dir") + "/peer_" + peerId;
 			for (int i = 0; i < noOfSplits; i++) {
-				File f = new File(splitDirectoryPath + "/" + i + "_" + outFileName);
+				File f = new File(splitDirectoryPath + "/part_" + i + "_" + outFileName);
 				inpFile = new FileInputStream(f);
 				int fileSize = (int) f.length();
 				byte[] buffer = new byte[fileSize];
@@ -73,8 +70,8 @@ public class FileMerge implements Initialization {
 		try {
 			String splitDirectoryPath = System.getProperty("user.dir") + "/peer_" + peerId;
 			for (int i = 0; i < noOfSplits; i++) {
-				LogConfig.getLogRecord().debugLog("Printing file : " + i + "_" + outFileName);
-				File f = new File(splitDirectoryPath + "/" + i + "_" + outFileName);
+				LogConfig.getLogRecord().debugLog("Printing file : part_" + i + "_" + outFileName);
+				File f = new File(splitDirectoryPath + "/part_" + i + "_" + outFileName);
 				f.delete();
 			}
 

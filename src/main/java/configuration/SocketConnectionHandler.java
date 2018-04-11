@@ -1,11 +1,9 @@
-package handler;
+package configuration;
 
 import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import configuration.LogConfig;
-import filemanagement.FileManager;
 import io.IOStreamReader;
 import io.IOStreamWriter;
 import messages.HandShake;
