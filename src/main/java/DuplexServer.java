@@ -45,6 +45,8 @@ public class DuplexServer extends Thread implements Runnable
         ClientHandler ch = new ClientHandler(channel, this);
         ch.start();
         id_to_client.put(id, ch);
+
+        // This peer is initiation the connection as a client, server will need my ID.
         String handshake = String.format("<CTRL,ID,%s>", my_id);
         ch.write(handshake);        
     }
@@ -58,9 +60,9 @@ public class DuplexServer extends Thread implements Runnable
         Random r = new Random();
         int temp = r.nextInt();
         id_to_client.put(temp, ch);
-
-        String handshake = String.format("<CTRL,ID,%s>", my_id);
-        ch.write(handshake);        
+        // I am receiving an unknown peer so don't have to send resolution msg. 
+        // String handshake = String.format("<CTRL,ID,%s>", my_id);
+        // ch.write(handshake);        
     }
 
     private void process_message(String hostname, int port, String msg)
@@ -89,16 +91,14 @@ public class DuplexServer extends Thread implements Runnable
     }
 
     /////////////////////////
-    // Class to collect incoming clients and send their messagses to parent.
+    // Class to collect incoming clients.
     // Accepted SocketChannel is given to parent to start a transmitter.  
-    // Will only relay messages if peer is the server in the connection.  
     // Inspired by https://github.com/khanhhua/full-duplex-chat
     private class ServerHandler extends Thread implements Runnable
     {
         private ServerSocketChannel serverChannel;
         DuplexServer parent;
         Selector my_selector;
-        // ArrayList<Client> clients;
 
         public ServerHandler(int port, DuplexServer dp) throws Exception
         {
@@ -108,8 +108,6 @@ public class DuplexServer extends Thread implements Runnable
             serverChannel.socket().bind(new InetSocketAddress(port));
             my_selector = Selector.open();
             serverChannel.register(my_selector, SelectionKey.OP_ACCEPT);
-            // key_to_id = new HashMap<>();
-            // clients = new ArrayList<>();
         }
 
         public void run() 
@@ -139,28 +137,10 @@ public class DuplexServer extends Thread implements Runnable
                 String hostname = channelClient.socket().getInetAddress().getHostName();
                 int port = channelClient.socket().getPort();
                 System.out.println(String.format("Got a new connection from %s:%s", hostname, port));
-                // System.out.println("Client is accepted");
-                channelClient.configureBlocking(false);
-                channelClient.register(my_selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                 // Send to super class to initiate a client
                 parent.init_socket(channelClient);
             } else if (key.isReadable()) {
-                SocketChannel channelClient = (SocketChannel) key.channel();
-                if (!channelClient.isOpen()) {
-                    System.out.println("Channel terminated by client");
-                }
-                ByteBuffer buffer = ByteBuffer.allocate(80);
-                buffer.clear();
-                channelClient.read(buffer);
-                if (buffer.get(0) == 0) {
-                    System.out.println("Nothing to read.");
-                    channelClient.close();
-                    return;
-                }
-                
-                String hostname = channelClient.socket().getInetAddress().getHostName();
-                int port = channelClient.socket().getPort();
-                parent.process_message(hostname, port, new String(buffer.array()));
+
 
             } else if (key.isWritable()) {
 
