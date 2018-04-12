@@ -1,9 +1,6 @@
-package scheduler;
+package configuration;
 
 import java.util.Timer;
-
-import handler.PeerHandler;
-import configuration.Initialization;
 
 public class UnchokeRegularScheduler implements Initialization {
 	public int OptUnchokeIntl;

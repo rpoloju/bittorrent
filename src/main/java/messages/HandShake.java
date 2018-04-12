@@ -23,7 +23,7 @@ public class HandShake extends MessageType {
 		 * followed by 10-byte zero bits, which is followed by 4-byte peer ID which is
 		 * the integer representation of the peer ID.
 		 */
-		super.message_payload = this.handshakeHeader.getBytes(); // first 18 bytes
+		System.arraycopy(this.handshakeHeader.getBytes(),0,super.message_payload,0,18);
 		System.arraycopy(ByteBuffer.allocate(4).putInt(peerId).array(), 0, super.message_payload, 28, 4);// last 4 bytes
 
 	}
