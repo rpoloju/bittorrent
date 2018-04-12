@@ -44,7 +44,7 @@ public class peerProcess
         if (hasfile > 0) { bitfield = new ArrayList<Boolean>(Collections.nCopies(306, true)); }
         else { bitfield = new ArrayList<Boolean>(Collections.nCopies(306, false));}
         // start server to listen for messages. 
-        listener = new DuplexServer(port);
+        listener = new DuplexServer(port, peerId);
         System.out.println("Initiated listener");
 
         if (peerId > 1001)
@@ -54,9 +54,9 @@ public class peerProcess
             {
                 // start clients to talk with previous peers
                 RemotePeerInfo prev_peer = peer_cfg.peerInfoMap.get(1001 + i);
-                listener.init_socket(prev_peer.getPeerHostName(), prev_peer.getPeerPortNumber());
+                listener.init_socket(prev_peer.getPeerHostName(), prev_peer.getPeerPortNumber(), 1001 + i);
                 // System.out.println("Broadcasting...");
-                listener.broadcast_to_peers("I am here at " + Integer.toString(1001 + i));
+                listener.broadcast_to_peers("I am here at " + Integer.toString(peerId));
             }           
         }
     }
