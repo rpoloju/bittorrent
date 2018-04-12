@@ -3,8 +3,14 @@
  * This is the entry point for the p2p project. 
  */
 
+import java.io.ObjectInputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import javax.xml.bind.DatatypeConverter;
 
 public class peerProcess
 {
@@ -57,6 +63,11 @@ public class peerProcess
                 listener.init_socket(prev_peer.getPeerHostName(), prev_peer.getPeerPortNumber(), 1001 + i);
                 // System.out.println("Broadcasting...");
                 listener.broadcast_to_peers("I am here at " + Integer.toString(peerId));
+                // Path path = Paths.get("/home/wgar/p2p/image.jpg");
+                // byte[] data = Files.readAllBytes(path);
+                // String img_to_hex_str = DatatypeConverter.printHexBinary(data);
+                // String sending = String.format("<CTRL,IMG,%s>", img_to_hex_str);
+                // listener.broadcast_to_peers(sending);
             }           
         }
     }

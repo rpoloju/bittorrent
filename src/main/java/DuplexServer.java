@@ -9,6 +9,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import javax.xml.bind.DatatypeConverter;
+
+import com.jcraft.jsch.Buffer;
 
 
 public class DuplexServer extends Thread implements Runnable
@@ -18,6 +24,7 @@ public class DuplexServer extends Thread implements Runnable
     // We really just want to store clients as IP:port pairs
     private HashMap<Integer, ClientHandler> id_to_client;
     private int my_id;
+    private String temp_buffer = "";
 
     public DuplexServer(int port, int id) throws Exception
     {   
@@ -65,16 +72,31 @@ public class DuplexServer extends Thread implements Runnable
         // ch.write(handshake);        
     }
 
-    private void process_message(String hostname, int port, String msg)
+    private void process_message(String hostname, int port, String msg) throws IOException
     {
         System.out.printf("%s:%s says: %s\n", hostname, port, msg);
 
         int res = msg.indexOf("CTRL");
-        System.out.printf(Integer.toString(res));
+        // System.out.printf(Integer.toString(res));
         if (res != -1)
         {
             int start = msg.indexOf("<") + 1;
             int end = msg.indexOf(">");
+            if (start == -1 || end == -1) 
+            {
+                System.out.printf("Got an un-delimited message. Buffering. \n");
+                temp_buffer += msg;    
+                return;
+            } 
+            else if (start == -1 && end != -1) 
+            {
+                // got the last message
+                System.out.printf("Attempting proc of buffer \n");                
+                process_message("", 0, temp_buffer);
+                temp_buffer = "";
+                return;
+            }
+
             String control_msg = msg.substring(start, end);
             String toks[] = control_msg.split(",");
             String type = toks[1];
@@ -82,6 +104,14 @@ public class DuplexServer extends Thread implements Runnable
             {
                 int id = Integer.parseInt(toks[2]);
                 System.out.printf("%s:%s sent a CTRL message: Resolve ID %d\n", hostname, port, id);         
+            }
+            else if (type.equalsIgnoreCase("IMG"))
+            {
+                String img_to_hex_str = toks[2];
+                byte[] data = DatatypeConverter.parseHexBinary(img_to_hex_str);
+                // byte[] data = img_as_str.getBytes();
+                Path path = Paths.get("/home/wgar/p2p/image2.jpg");
+                Files.write(path, data);
             }
             else 
             {
@@ -158,11 +188,14 @@ public class DuplexServer extends Thread implements Runnable
         Selector my_selector;
         String hostname;
         int port;
+        byte[] temp_buffer;
+        SingletonCommon common_cfg;
 
         public ClientHandler(SocketChannel sc, DuplexServer dp) throws IOException {
             parent = dp;    
             channel = sc;
             my_selector = Selector.open();
+            common_cfg = SingletonCommon.getInstance();
             channel.configureBlocking(false);
             channel.register(my_selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
             hostname = channel.socket().getInetAddress().getHostName();
@@ -197,7 +230,7 @@ public class DuplexServer extends Thread implements Runnable
                 if (!channelClient.isOpen()) {
                     System.out.println("Channel terminated by client");
                 }
-                ByteBuffer buffer = ByteBuffer.allocate(80);
+                ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize);
                 buffer.clear();
                 channelClient.read(buffer);
                 if (buffer.get(0) == 0) {
