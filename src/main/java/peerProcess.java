@@ -65,12 +65,7 @@ public class peerProcess
                 // System.out.println("Broadcasting...");
                 // listener.broadcast_to_peers("<CTRL,HELLO," + Integer.toString(peerId) + ">");
                 
-                Path path = Paths.get("/home/wgar/p2p/image.jpg");
-                ByteBuffer b_to_send = ByteBuffer.wrap(Files.readAllBytes(path));
-                String sending = String.format("<CTRL,IMG,%d>", b_to_send.array().length);
-                listener.broadcast_to_peers(sending);
-                
-                listener.broadcast_to_peers(b_to_send);
+                MessagePreparer.broadcast_file(listener, "/home/wgar/p2p/image.jpg");
             }           
         }
     }

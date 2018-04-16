@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -11,7 +12,7 @@ import javax.xml.bind.DatatypeConverter;
 // Class to turn byte blobs into something useful
 public class MessageHandler 
 {
-    ByteBuffer temp_buffer;
+    ByteArrayOutputStream temp_buffer = new ByteArrayOutputStream();
     String previous_command = "INIT";
     int size_to_expect = 0;
     public MessageHandler() {
@@ -20,14 +21,6 @@ public class MessageHandler
     public ArrayList<ByteBuffer> chunk_messages(String hostname, int port, ByteBuffer buffer) 
     {
         ArrayList<ByteBuffer> chunks = new ArrayList<>();
-
-        if (previous_command.equals("IMG"))
-        {
-            // We are expecting image so simply buffer
-            chunks.add(buffer);
-            return chunks;
-
-        }
 
         int start = 0;
         int end = 1;        
@@ -38,10 +31,11 @@ public class MessageHandler
             {                
                 int length = end - start;
                 chunked_bytes += length;
-                byte[] chunk = Arrays.copyOfRange(buffer.array(), start, end);
-                System.out.println(String.format("Got chunk : %s", new String(chunk)));
+                byte[] chunk = Arrays.copyOfRange(buffer.array(), start + 1, end - 1);
+                String ctrl_msg = new String(chunk);
+                System.out.println(String.format("Got chunk : %s", ctrl_msg));
+                handle_string(hostname, port, ctrl_msg);
                 // chunks.add();
-                String msg = create_response_message(hostname, port, ByteBuffer.wrap(chunk));
                 start = end;
             }   
 
@@ -50,77 +44,27 @@ public class MessageHandler
 
         if (chunked_bytes < buffer.array().length)
         {
-            // Leftover undelimited bytes. Add to chunks
-            int length = buffer.array().length - chunked_bytes;
-            byte[] chunk = Arrays.copyOfRange(buffer.array(), chunked_bytes, buffer.array().length);
-            System.out.println(String.format("Saw a leftover byte stream."));            
-            String msg = create_response_message(hostname, port, ByteBuffer.wrap(chunk));
+            // Leftover undelimited bytes. DROP . This is incredibly idealistic but yeah just keep message lengths short for now.
+            // int length = buffer.array().length - chunked_bytes;
+            // byte[] chunk = Arrays.copyOfRange(buffer.array(), chunked_bytes, buffer.array().length);
+            // System.out.println(String.format("Leftover byte stream : %s", new String(chunk)));
+            // handle_wierd_string(hostname, port, ByteBuffer.wrap(chunk));
+            // System.out.println(String.format("Left over byte stream of length %d DROPPED.", buffer.array().length - chunked_bytes));
         }
 
         return chunks;
-    }
-
-    public String create_response_message(String hostname, int port, ByteBuffer buffer)
-    {
-        String rcv = new String(buffer.array());
-        int start = rcv.indexOf("<") + 1;
-        int end = rcv.indexOf(">");
-        System.out.println(String.format("Current state: %s", previous_command));
-
-        if (start != -1 && end != -1)
-        {
-            String control_msg = rcv.substring(start, end);
-            handle_string(hostname, port, control_msg);
-        }
-        else if (start == -1 || end == -1) 
-        {
-            System.out.printf("Got an un-delimited message. Attempting to buffer\n");
-
-            if (previous_command.equals("IMG")) 
-            {
-                temp_buffer = temp_buffer.put(buffer.array(), temp_buffer.position(), buffer.array().length);
-
-                System.out.printf("Received %d bytes so far.\n", temp_buffer.array().length); 
-                
-                if (temp_buffer.array().length == size_to_expect) 
-                {
-                    handle_image(hostname, port, temp_buffer);
-                    clear_state();
-                }
-            } 
-            else 
-            {
-                System.out.printf("Not sure what to do with this un-delimited message.\n"); 
-            }
-
-            return "exit";
-        }
-
-        return "default";
-    }
-
-    private void handle_image(String hostname, int port, ByteBuffer buf)
-    {
-        try {
-            Path path = Paths.get("/home/wgar/p2p/image2.jpg");
-            Files.write(path, buf.array());    
-            System.out.printf("Wrote the file to %s\n", path.getFileName());            
-        } catch (IOException e) {
-            System.err.println(e.getStackTrace());                 
-        }
-        
     }
 
     private void handle_string(String hostname, int port, String msg)
     {
 
         // System.out.printf("%s:%s says: %s\n", hostname, port, msg);
+        System.out.println(String.format("Current state: %s", previous_command));
 
-        int res = msg.indexOf("CTRL");
-        // System.out.printf(Integer.toString(res));
-        if (res != -1)
-        {   
-            String toks[] = msg.split(",");
+        String toks[] = msg.split(",");
+        String plane = toks[0];
+        if (plane.equalsIgnoreCase("CTRL"))
+        {
             String type = toks[1];
             if (type.equalsIgnoreCase("ID")) 
             {
@@ -137,22 +81,61 @@ public class MessageHandler
             {
                 System.out.printf("Got an unhandled CTRL message: %s\n", msg);
             }
-        }
-        else
+        } 
+        else if (plane.equalsIgnoreCase("DATA"))
         {
-            System.out.printf("Got a poorly formatted string message. \n");
+            String part = toks[2];
+            handle_image(hostname, port, part);
         }
+        else 
+        {
+            System.out.printf("Unknown plane received \n");
+        }
+    }
+
+    private void handle_image(String hostname, int port, String part)
+    {
+        if (previous_command.equals("IMG")) 
+        {
+            byte[] decoded_part = DatatypeConverter.parseBase64Binary(part);
+            try {
+                temp_buffer.write(decoded_part);
+            } catch (IOException e) {
+                System.err.println(e.getStackTrace());                      
+            }
+
+            System.out.printf("Received %d decoded bytes so far.\n", temp_buffer.size()); 
+            if (temp_buffer.size() != size_to_expect) 
+            {
+                return;
+            }
+        } 
+        else 
+        {
+            System.out.printf("Not sure what to do with this un-delimited message.\n"); 
+            return;
+        }
+
+        try {
+            Path path = Paths.get("/home/wgar/p2p/image2.jpg");
+            Files.write(path, temp_buffer.toByteArray());    
+            System.out.printf("Wrote the file to %s\n", path.getFileName()); 
+            clear_state();         
+        } catch (IOException e) {
+            System.err.println(e.getStackTrace());                 
+        }
+        
     }
 
     private void init_state(int size, String type)
     {
-        temp_buffer = ByteBuffer.allocate(size_to_expect);
+        // temp_buffer = ByteBuffer.allocate(size);
         previous_command = type;
     }
 
     private void clear_state() 
     {
-        temp_buffer.clear();
+        // temp_buffer.clear();
         size_to_expect = 0;
         previous_command = "INIT";
     }
