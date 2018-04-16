@@ -20,27 +20,20 @@ import com.jcraft.jsch.Buffer;
 public class DuplexServer extends Thread implements Runnable
 {   
     private ServerHandler s;
+    private MessageHandler mh;
     // private ArrayList<InetSocketAddress> clientsToInit;
     // We really just want to store clients as IP:port pairs
     private HashMap<Integer, ClientHandler> id_to_client;
     private int my_id;
-    private String temp_buffer = "";
 
     public DuplexServer(int port, int id) throws Exception
     {   
         // clientsToInit = new ArrayList<>();
+        mh = new MessageHandler();
         s = new ServerHandler(port, this);
         s.start();
         id_to_client = new HashMap<>();
         my_id = id;
-    }
-
-    public void broadcast_to_peers(String message) throws IOException
-    {
-        for(Integer id : id_to_client.keySet()) {
-            ClientHandler ch = id_to_client.get(id);
-            ch.write(message);
-        }
     }
 
     public void init_socket(String host_name, int port, int id) throws IOException
@@ -72,52 +65,25 @@ public class DuplexServer extends Thread implements Runnable
         // ch.write(handshake);        
     }
 
-    private void process_message(String hostname, int port, String msg) throws IOException
+    public void broadcast_to_peers(String message) throws IOException
     {
-        System.out.printf("%s:%s says: %s\n", hostname, port, msg);
-
-        int res = msg.indexOf("CTRL");
-        // System.out.printf(Integer.toString(res));
-        if (res != -1)
-        {
-            int start = msg.indexOf("<") + 1;
-            int end = msg.indexOf(">");
-            if (start == -1 || end == -1) 
-            {
-                System.out.printf("Got an un-delimited message. Buffering. \n");
-                temp_buffer += msg;    
-                return;
-            } 
-            else if (start == -1 && end != -1) 
-            {
-                // got the last message
-                System.out.printf("Attempting proc of buffer \n");                
-                process_message("", 0, temp_buffer);
-                temp_buffer = "";
-                return;
-            }
-
-            String control_msg = msg.substring(start, end);
-            String toks[] = control_msg.split(",");
-            String type = toks[1];
-            if (type.equalsIgnoreCase("ID")) 
-            {
-                int id = Integer.parseInt(toks[2]);
-                System.out.printf("%s:%s sent a CTRL message: Resolve ID %d\n", hostname, port, id);         
-            }
-            else if (type.equalsIgnoreCase("IMG"))
-            {
-                String img_to_hex_str = toks[2];
-                byte[] data = DatatypeConverter.parseHexBinary(img_to_hex_str);
-                // byte[] data = img_as_str.getBytes();
-                Path path = Paths.get("/home/wgar/p2p/image2.jpg");
-                Files.write(path, data);
-            }
-            else 
-            {
-                System.out.printf("Got an unhandled CTRL message: %s\n", control_msg);
-            }
+        for(Integer id : id_to_client.keySet()) {
+            ClientHandler ch = id_to_client.get(id);
+            ch.write(message);
         }
+    }
+
+    public void broadcast_to_peers(ByteBuffer message) throws IOException
+    {
+        for(Integer id : id_to_client.keySet()) {
+            ClientHandler ch = id_to_client.get(id);
+            ch.write(message);
+        }
+    }
+
+    private void process_message(String hostname, int port, ByteBuffer buffer) throws IOException
+    {
+        ArrayList<ByteBuffer> chunks = mh.chunk_messages(hostname, port, buffer);
     }
 
     /////////////////////////
@@ -239,7 +205,8 @@ public class DuplexServer extends Thread implements Runnable
                     return;
                 }    
 
-                parent.process_message(hostname, port, new String(buffer.array()));
+                // parent.process_message(hostname, port, new String(buffer.array()));
+                parent.process_message(hostname, port, buffer);
 
             } else if (key.isWritable()) {
 
@@ -248,6 +215,10 @@ public class DuplexServer extends Thread implements Runnable
     
         public void write(String input) throws IOException {
             channel.write(ByteBuffer.wrap(input.getBytes()));
+        }
+
+        public void write(ByteBuffer buffer) throws IOException {
+            channel.write(buffer);
         }
     }
 }

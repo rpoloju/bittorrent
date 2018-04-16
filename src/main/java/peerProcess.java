@@ -4,6 +4,7 @@
  */
 
 import java.io.ObjectInputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,12 +63,14 @@ public class peerProcess
                 RemotePeerInfo prev_peer = peer_cfg.peerInfoMap.get(1001 + i);
                 listener.init_socket(prev_peer.getPeerHostName(), prev_peer.getPeerPortNumber(), 1001 + i);
                 // System.out.println("Broadcasting...");
-                listener.broadcast_to_peers("I am here at " + Integer.toString(peerId));
-                // Path path = Paths.get("/home/wgar/p2p/image.jpg");
-                // byte[] data = Files.readAllBytes(path);
-                // String img_to_hex_str = DatatypeConverter.printHexBinary(data);
-                // String sending = String.format("<CTRL,IMG,%s>", img_to_hex_str);
-                // listener.broadcast_to_peers(sending);
+                // listener.broadcast_to_peers("<CTRL,HELLO," + Integer.toString(peerId) + ">");
+                
+                Path path = Paths.get("/home/wgar/p2p/image.jpg");
+                ByteBuffer b_to_send = ByteBuffer.wrap(Files.readAllBytes(path));
+                String sending = String.format("<CTRL,IMG,%d>", b_to_send.array().length);
+                listener.broadcast_to_peers(sending);
+                
+                listener.broadcast_to_peers(b_to_send);
             }           
         }
     }
