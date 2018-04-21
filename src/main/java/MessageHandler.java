@@ -6,8 +6,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import javax.xml.bind.DatatypeConverter;
+
+import messages.HandShake;
 
 // Class to turn byte blobs into something useful
 public class MessageHandler 
@@ -15,44 +18,66 @@ public class MessageHandler
     ByteArrayOutputStream temp_buffer = new ByteArrayOutputStream();
     String previous_command = "INIT";
     int size_to_expect = 0;
-    public MessageHandler() {
+    private ArrayList<MessageListener> message_listeners;
+
+    public MessageHandler() 
+    {
+        message_listeners = new ArrayList<>();
     }
 
-    public ArrayList<ByteBuffer> chunk_messages(String hostname, int port, ByteBuffer buffer) 
+    public void register_listener(MessageListener ml)
     {
-        ArrayList<ByteBuffer> chunks = new ArrayList<>();
+        message_listeners.add(ml);        
+    }
 
+    public HashMap<Integer, Integer> chunk_messages(ByteBuffer buffer) 
+    {
         int start = 0;
         int end = 1;        
         int chunked_bytes = 0;
-        for (byte b : buffer.array())
-        {
-            if (b == (byte) '>' && buffer.array()[start] == (byte) '<')
-            {                
-                int length = end - start;
-                chunked_bytes += length;
-                byte[] chunk = Arrays.copyOfRange(buffer.array(), start + 1, end - 1);
-                String ctrl_msg = new String(chunk);
-                System.out.println(String.format("Got chunk : %s", ctrl_msg));
-                handle_string(hostname, port, ctrl_msg);
-                // chunks.add();
-                start = end;
-            }   
+        HashMap<Integer, Integer> result = new HashMap<>();
+        System.out.printf("length is %d\n", buffer.array().length);    
 
-            end += 1; 
+        while (chunked_bytes < buffer.array().length)
+        {
+            byte[] header = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + 4);
+            String header_maybe = new String(header);
+            chunked_bytes += 4;
+            // System.out.printf("Header is %s\n", header_maybe);    
+
+            if (header_maybe.equalsIgnoreCase("P2PF"))
+            {
+                // Got handshake
+                chunked_bytes += 14;
+                chunked_bytes += 10;
+                int peer_id = ByteBuffer.wrap(Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + 4)).getInt();
+                System.out.printf("Peerid is %d\n", peer_id);    
+                chunked_bytes += 4;
+                HandShake hs = new HandShake(peer_id);
+                result.put(Constants.RESOLVE, peer_id);
+                broadcast_handshake(hs);
+            }
+            else
+            {
+                // Got another type
+                // for (byte b : header) 
+                // {
+                //     System.out.println((int) b);
+                // }
+                int message_length = ByteBuffer.wrap(header).getInt();
+                if (message_length == 0) return result;
+                System.out.printf("Message length is %d\n", message_length);    
+                byte[] message = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + message_length);
+                int type = ByteBuffer.wrap(Arrays.copyOfRange(message, 0, 1)).getInt();
+
+                byte[] payload = Arrays.copyOfRange(message, 1, message_length);
+                System.out.printf("Got type %d\n", type);    
+
+            }
+
         }
 
-        if (chunked_bytes < buffer.array().length)
-        {
-            // Leftover undelimited bytes. DROP . This is incredibly idealistic but yeah just keep message lengths short for now.
-            // int length = buffer.array().length - chunked_bytes;
-            // byte[] chunk = Arrays.copyOfRange(buffer.array(), chunked_bytes, buffer.array().length);
-            // System.out.println(String.format("Leftover byte stream : %s", new String(chunk)));
-            // handle_wierd_string(hostname, port, ByteBuffer.wrap(chunk));
-            // System.out.println(String.format("Left over byte stream of length %d DROPPED.", buffer.array().length - chunked_bytes));
-        }
-
-        return chunks;
+        return result;
     }
 
     private void handle_string(String hostname, int port, String msg)
@@ -138,5 +163,13 @@ public class MessageHandler
         // temp_buffer.clear();
         size_to_expect = 0;
         previous_command = "INIT";
+    }
+
+    private void broadcast_handshake(HandShake hs)
+    {
+        for (MessageListener mListener : message_listeners)
+        {
+            mListener.onHandShake(hs);
+        }
     }
 }

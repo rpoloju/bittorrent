@@ -9,9 +9,22 @@ import com.google.common.base.Splitter;
 
 public class MessagePreparer 
 {
+    
     public MessagePreparer()
     {
 
+    }
+
+    public static int get_num_pieces(String path) throws IOException
+    {
+        SingletonCommon common_cfg = SingletonCommon.getInstance();
+        
+        Path p = Paths.get(path);
+        byte[] raw_image = Files.readAllBytes(p);
+        int pieces = (int) Math.ceil((double)raw_image.length / common_cfg.PieceSize);
+        System.out.printf("Got %d pieces for path %s\n", pieces, path);
+
+        return pieces;
     }
 
     public static void broadcast_file(DuplexServer listener, String path) throws IOException

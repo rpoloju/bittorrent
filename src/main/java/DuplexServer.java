@@ -9,12 +9,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.Path;
-import javax.xml.bind.DatatypeConverter;
 
-import com.jcraft.jsch.Buffer;
+import messages.HandShake;
 
 
 public class DuplexServer extends Thread implements Runnable
@@ -26,10 +22,12 @@ public class DuplexServer extends Thread implements Runnable
     private HashMap<Integer, ClientHandler> id_to_client;
     private int my_id;
 
-    public DuplexServer(int port, int id) throws Exception
+
+    public DuplexServer(int port, int id, BitTorrentProtocol btp) throws Exception
     {   
         // clientsToInit = new ArrayList<>();
         mh = new MessageHandler();
+        mh.register_listener(btp);
         s = new ServerHandler(port, this);
         s.start();
         id_to_client = new HashMap<>();
@@ -47,8 +45,9 @@ public class DuplexServer extends Thread implements Runnable
         id_to_client.put(id, ch);
 
         // This peer is initiation the connection as a client, server will need my ID.
-        String handshake = String.format("<CTRL,ID,%s>", my_id);
-        ch.write(handshake);        
+        // String handshake = String.format("<CTRL,ID,%s>", my_id);
+        HandShake hs = new HandShake(my_id);
+        ch.write(ByteBuffer.wrap(hs.getPayload()));        
     }
 
     public void init_socket(SocketChannel sc) throws IOException
@@ -61,8 +60,28 @@ public class DuplexServer extends Thread implements Runnable
         int temp = r.nextInt();
         id_to_client.put(temp, ch);
         // I am receiving an unknown peer so don't have to send resolution msg. 
-        // String handshake = String.format("<CTRL,ID,%s>", my_id);
-        // ch.write(handshake);        
+    }
+
+    public void resolve_socket(String hostname, int port, int id_to_resolve)
+    {
+        int old_key = -1;
+        for (int key : id_to_client.keySet()) {
+            ClientHandler ch = id_to_client.get(key);
+            if (ch.hostname == hostname && ch.port == port) {
+                old_key = key;
+                break;
+            }
+        }
+
+        if (old_key == -1) {
+            System.out.printf("The requested resolution for ID=%d could not be found!\n", id_to_resolve);
+            return;
+        }
+
+        ClientHandler get = id_to_client.remove(old_key);
+        id_to_client.put(id_to_resolve, get);
+
+        System.out.printf("ClientHandler successfully resolved to %d\n", id_to_resolve);
     }
 
     public void broadcast_to_peers(String message) throws IOException
@@ -83,7 +102,16 @@ public class DuplexServer extends Thread implements Runnable
 
     private void process_message(String hostname, int port, ByteBuffer buffer) throws IOException
     {
-        ArrayList<ByteBuffer> chunks = mh.chunk_messages(hostname, port, buffer);
+        HashMap<Integer, Integer> result = mh.chunk_messages(buffer);
+
+        for (int key : result.keySet())
+        {
+            if (key == Constants.RESOLVE)
+            {
+                int peer_id = result.get(key);
+                resolve_socket(hostname, port, peer_id);
+            }
+        }
     }
 
     /////////////////////////
@@ -196,7 +224,7 @@ public class DuplexServer extends Thread implements Runnable
                 if (!channelClient.isOpen()) {
                     System.out.println("Channel terminated by client");
                 }
-                ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize);
+                ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize + 5);
                 buffer.clear();
                 channelClient.read(buffer);
                 if (buffer.get(0) == 0) {
@@ -218,6 +246,9 @@ public class DuplexServer extends Thread implements Runnable
         }
 
         public void write(ByteBuffer buffer) throws IOException {
+            String s = new String(buffer.array());
+            System.out.printf("Sending: %s\n", s);
+
             channel.write(buffer);
         }
     }
