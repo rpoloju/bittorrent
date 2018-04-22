@@ -70,15 +70,25 @@ public class BitTorrentProtocol implements MessageListener
 
         // create bitfield & send
         BitField bf = new BitField(from_id, have_field);
-        try {
+
+        if (!bf.hasNothing())
+        {
             System.out.println("Sending my bitfield");
-            // byte[] bss = new byte[] {0, 0, 0, 1};
-            // System.out.println("The length is " + ByteBuffer.wrap(bss).getInt());            
-            // listener.send_message(ByteBuffer.wrap(bss), from_id);            
-            listener.send_message(bf.get_buffer(), from_id);
-        } catch (IOException e) {
-            System.err.println(e.getStackTrace());
+            
+            try {
+                // byte[] bss = new byte[] {0, 0, 0, 1};
+                // System.out.println("The length is " + ByteBuffer.wrap(bss).getInt());            
+                // listener.send_message(ByteBuffer.wrap(bss), from_id);            
+                listener.send_message(bf.get_buffer(), from_id);
+            } catch (IOException e) {
+                System.err.println(e.getStackTrace());
+            }
         }
+        else 
+        {
+            System.out.println("I have nothing so skipping bitfield.");
+        }
+
 	}
 
 	@Override

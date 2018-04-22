@@ -13,6 +13,17 @@ public class BitField extends MessageType {
 	
 	public BitSet getBitSet() {
 		return BitSet.valueOf(super.message_payload);
-	}
+    }
+    
+    public boolean hasNothing() {
+        for (byte b : super.message_payload)
+        {
+            if ((int) b != 0)
+            {
+                return false;
+            }
+        }
+        return true;        
+    }
 
 }
