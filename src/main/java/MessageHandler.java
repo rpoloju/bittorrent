@@ -64,12 +64,12 @@ public class MessageHandler
             else
             {
                 // Got another type
-                
+                header[0] = (byte) 0; // Undo hack
                 int message_length = ByteBuffer.wrap(header).getInt();
                 if (message_length == 0) 
                     return chunks;
                     
-                if (message_length > buffer.array().length)
+                if (message_length > buffer.array().length || message_length < 0)
                 {
                     System.err.println("Malformed message received: message_length=" + message_length);
                     return chunks;
@@ -77,10 +77,13 @@ public class MessageHandler
 
                 System.out.printf("Message length is %d\n", message_length);    
                 byte[] message = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + message_length);
-                int type = ByteBuffer.wrap(Arrays.copyOfRange(message, 0, 1)).getInt();
-                
-                byte[] payload = Arrays.copyOfRange(message, 1, message_length);
-                System.out.printf("Got type %d\n", MessageType.getTypeFromMessageValue((byte)type));    
+                // for (byte b : message) {
+                //     System.out.println(new Integer((int)b));
+                // }
+                int type = Arrays.copyOfRange(message, 0, 1)[0];      
+                byte[] payload = Arrays.copyOfRange(message, 1, message_length - 1);
+                chunked_bytes += message_length;
+                System.out.printf("Got type %s\n", MessageType.getTypeFromMessageValue((byte)type));    
                 
                 // Handle each type of message now and call broadcaster
                 if (type == Constants.BITFIELD) {

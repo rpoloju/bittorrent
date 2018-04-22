@@ -86,16 +86,29 @@ public class MessageType {
     }
 
     public ByteBuffer get_buffer() {
-        byte[] message_length = ByteBuffer.allocate(4).putInt(1 + this.message_payload.length).array();
-        Byte type = getCodeFromMessageType(this.message_type);
+        // byte[] message_length = ByteBuffer.allocate(4).putInt(1 + this.message_payload.length).array();
+        // message_length[0] = (byte) 127;  // Get ClientHandler key to accept the stream.
+        // byte type = getCodeFromMessageType(this.message_type);
         
-        int total_length = 4 + 1 + this.message_payload.length;
-        ByteBuffer bb = ByteBuffer.allocate(total_length);
-        bb.put(message_length); // First 4 bytes
-        bb.put(type); // type
-        bb.put(this.message_payload); // next N
+        // int total_length = 4 + 1 + this.message_payload.length;
+        // ByteBuffer bb = ByteBuffer.allocate(total_length);
+        // bb = bb.put(message_length); // First 4 bytes
+        // bb.put(type); // type
+        // bb.put(this.message_payload); // next N
+        byte[] message_length = ByteBuffer.allocate(4).putInt(1 + this.message_payload.length).array();
+        message_length[0] = (byte) 127;
+        byte[] type = ByteBuffer.allocate(1).put(getCodeFromMessageType(this.message_type)).array();
 
-        return bb;
+        byte[] message = ByteBuffer.allocate(message_length.length + type.length + this.message_payload.length).array();
+        System.arraycopy(message_length, 0, message, 0, message_length.length);
+        System.arraycopy(type, 0, message, message_length.length, type.length);
+        System.arraycopy(message_payload, 0, message, message_length.length + type.length, message_payload.length);
+
+        // for (byte b : message) {
+        //     System.out.println(new Integer((int)b));
+        // }
+
+        return ByteBuffer.wrap(message);
     }
 
 }
