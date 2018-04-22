@@ -9,6 +9,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import messages.MessageType;
 
 import messages.HandShake;
@@ -22,14 +26,14 @@ public class DuplexServer extends Thread implements Runnable
     // We really just want to store clients as IP:port pairs
     private HashMap<Integer, ClientHandler> id_to_client;
     private int my_id;
-
+    private Logger LOGGER = LoggerFactory.getLogger(DuplexServer.class);
 
     public DuplexServer(RemotePeerInfo my_info, int id, BitTorrentProtocol btp) throws Exception
     {   
         int port = my_info.getPeerPortNumber();
         String hostname = my_info.getPeerHostName();
         int hasfile = my_info.getHasFile_or_not();
-        System.out.println("CONFIG: " + hostname + ":" + port + " hasfile: " + hasfile);
+        LOGGER.debug("CONFIG: " + hostname + ":" + port + " hasfile: " + hasfile);
 
         // clientsToInit = new ArrayList<>();
         mh = new MessageHandler();
@@ -42,9 +46,10 @@ public class DuplexServer extends Thread implements Runnable
 
     public void init_socket(String host_name, int port, int id) throws IOException
     {
+        LOGGER.info("Peer [" + my_id + "] makes a connection to Peer [" + id + "].");
+        
         InetSocketAddress address = new InetSocketAddress(host_name, port);
         // clientsToInit.add(address);
-        System.out.println("Adding original client");
         SocketChannel channel = SocketChannel.open(address);        
         ClientHandler ch = new ClientHandler(channel, this);
         ch.start();
@@ -56,9 +61,11 @@ public class DuplexServer extends Thread implements Runnable
         ch.write(ByteBuffer.wrap(hs.getPayload()));        
     }
 
+    // Receiving incoming peer connection
     public void init_socket(SocketChannel sc) throws IOException
-    {
-        System.out.println("Adding received client");
+    {       
+        // Don't log until we have the resolved ID.
+
         ClientHandler ch = new ClientHandler(sc, this);
         ch.start();
         // Don't know id, just add to a random one
@@ -76,19 +83,19 @@ public class DuplexServer extends Thread implements Runnable
         int old_key = get_peer_id(hostname, port);
 
         if (old_key == -1) {
-            System.out.printf("The requested resolution for ID=%d could not be found!\n", id_to_resolve);
+            LOGGER.debug(String.format("The requested resolution for ID=%d could not be found!", id_to_resolve));
             return;
         }
 
         if (old_key == id_to_resolve) {
             // Got an id we already knew.
-            System.out.printf("The ID matched existing ID=%d and is OK\n", id_to_resolve);
+            LOGGER.debug(String.format("The ID matched existing ID=%d and is OK", id_to_resolve));
         }
         else {
             ClientHandler get = id_to_client.remove(old_key);
             id_to_client.put(id_to_resolve, get);
-    
-            System.out.printf("ClientHandler successfully resolved to %d\n", id_to_resolve);
+
+            LOGGER.info("Peer [" + my_id + "] is connected from Peer [" + id_to_resolve + "].");    
         }
 
         // Notify BtP
@@ -100,12 +107,12 @@ public class DuplexServer extends Thread implements Runnable
         int peer_gone = get_peer_id(hostname, port);
 
         if (peer_gone == -1) {
-            System.out.printf("Peer with ID=%d left but was not registered!\n", peer_gone);
+            LOGGER.debug(String.format("Peer with ID=%d left but was not registered!", peer_gone));
             return;
         }
 
         id_to_client.remove(peer_gone);
-        System.out.printf("ClientHandler successfully removed %d\n", peer_gone);
+        LOGGER.debug(String.format("ClientHandler for Peer %d successfully removed.", peer_gone));
 
         // Notify BtP
         mh.peer_left(peer_gone);
@@ -128,7 +135,7 @@ public class DuplexServer extends Thread implements Runnable
         }
         else
         {
-            System.out.println("Tried to send to a non-existant peer ID.");
+            LOGGER.debug("Tried to send to a non-existant peer ID.");
         }
     }
 
@@ -212,7 +219,7 @@ public class DuplexServer extends Thread implements Runnable
                 SocketChannel channelClient = serverChannel.accept();
                 String hostname = channelClient.socket().getInetAddress().getHostName();
                 int port = channelClient.socket().getPort();
-                System.out.println(String.format("Got a new connection from %s:%s", hostname, port));
+                LOGGER.debug(String.format("Got a new connection from %s:%s", hostname, port));
                 // Send to super class to initiate a client
                 parent.init_socket(channelClient);
             } else if (key.isReadable()) {
@@ -276,14 +283,14 @@ public class DuplexServer extends Thread implements Runnable
             if (key.isReadable()) {
                 SocketChannel channelClient = (SocketChannel) key.channel();
                 if (!channelClient.isOpen()) {
-                    System.out.println("Channel terminated by client");
+                    LOGGER.debug("Channel terminated by client");
                     parent.clean_socket(hostname, port);                    
                 }
                 ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize + 5);
                 buffer.clear();
                 channelClient.read(buffer);
                 if (buffer.get(0) == 0) {
-                    System.out.println("Nothing to read.");
+                    LOGGER.debug("Nothing to read. Channel closed.");
                     channelClient.close();
                     parent.clean_socket(hostname, port);
                     return;
@@ -294,7 +301,7 @@ public class DuplexServer extends Thread implements Runnable
             } else if (key.isWritable()) {
                 SocketChannel channelClient = (SocketChannel) key.channel();
                 for (ByteBuffer bb : write_queue){
-                    System.out.printf("Sending %d bytes\n", bb.array().length);
+                    LOGGER.debug(String.format("Sending %d bytes", bb.array().length));
                     
                     channelClient.write(bb);
                 }

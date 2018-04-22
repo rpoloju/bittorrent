@@ -51,11 +51,11 @@ public class BitTorrentProtocol implements MessageListener
 
         peer_to_have_field = new HashMap<>();
 
+        LOGGER.debug("Starting P2P Protocol.");
+        
         // start server to listen for messages. 
         listener = new DuplexServer(my_info, myId, this);
-        // System.out.println("Initiated listener");
-        LOGGER.debug("Initiaited Listener");
-        
+
         if (myId > 1001)
         {
             int peers_to_connect = myId - 1001;
@@ -79,7 +79,7 @@ public class BitTorrentProtocol implements MessageListener
 
         if (!bf.hasNothing())
         {
-            System.out.println("Sending my bitfield");
+            LOGGER.debug("Sending my bitfield to Peer " + from_id);
             
             try {
                 // byte[] bss = new byte[] {0, 0, 0, 1};
@@ -87,19 +87,21 @@ public class BitTorrentProtocol implements MessageListener
                 // listener.send_message(ByteBuffer.wrap(bss), from_id);            
                 listener.send_message(bf.get_buffer(), from_id);
             } catch (IOException e) {
-                System.err.println(e.getStackTrace());
+                LOGGER.error(e.getMessage());
+                System.out.println(e.getStackTrace());
             }
         }
         else 
         {
-            System.out.println("I have nothing so skipping bitfield.");
+            LOGGER.debug("I have nothing so skipping bitfield.");
         }
 
 	}
 
 	@Override
 	public void onBitField(BitField bf) {
-        System.out.println("We have bitfield");
+        int from_id = bf.getpeerId();
+        LOGGER.debug("We have bitfield from Peer [" + from_id + "].");
 		
 	}
 
@@ -140,12 +142,12 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onPeerJoined(int peer_id) {
-		System.out.println("A new friend with ID=" + peer_id + " has joined");
+        LOGGER.debug("A new friend with ID=" + peer_id + " has joined");
 	}
 
 	@Override
 	public void onPeerLeft(int peer_id) {
-		System.out.println("A friend left with ID=" + peer_id);
+		LOGGER.debug("A friend left with ID=" + peer_id);
 	}
 
 }

@@ -11,6 +11,9 @@ import java.util.HashMap;
 
 import javax.xml.bind.DatatypeConverter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import messages.BitField;
 import messages.HandShake;
 import messages.MessageType;
@@ -22,6 +25,8 @@ public class MessageHandler
     String previous_command = "INIT";
     int size_to_expect = 0;
     private ArrayList<MessageListener> message_listeners;
+
+    private Logger LOGGER = LoggerFactory.getLogger(MessageHandler.class);
 
     public MessageHandler() 
     {
@@ -39,7 +44,7 @@ public class MessageHandler
         int end = 1;        
         int chunked_bytes = 0;
         int given_id = some_id;
-        System.out.printf("length is %d\n", buffer.array().length);    
+        // System.out.printf("length is %d\n", buffer.array().length);    
         ArrayList<MessageType> chunks = new ArrayList<>();
 
         while (chunked_bytes < buffer.array().length)
@@ -71,11 +76,11 @@ public class MessageHandler
                     
                 if (message_length > buffer.array().length || message_length < 0)
                 {
-                    System.err.println("Malformed message received: message_length=" + message_length);
+                    LOGGER.error("Malformed message received: message_length=" + message_length);
                     return chunks;
                 }
 
-                System.out.printf("Message length is %d\n", message_length);    
+                LOGGER.debug(String.format("Message length is %d", message_length));    
                 byte[] message = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + message_length);
                 // for (byte b : message) {
                 //     System.out.println(new Integer((int)b));
@@ -83,7 +88,7 @@ public class MessageHandler
                 int type = Arrays.copyOfRange(message, 0, 1)[0];      
                 byte[] payload = Arrays.copyOfRange(message, 1, message_length - 1);
                 chunked_bytes += message_length;
-                System.out.printf("Got type %s\n", MessageType.getTypeFromMessageValue((byte)type));    
+                LOGGER.debug(String.format("Got type %s", MessageType.getTypeFromMessageValue((byte)type)));    
                 
                 // Handle each type of message now and call broadcaster
                 if (type == Constants.BITFIELD) {
