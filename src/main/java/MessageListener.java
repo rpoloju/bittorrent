@@ -11,12 +11,12 @@ import messages.UnChoke;
 public interface MessageListener {
     void onHandShake(HandShake hs);
     void onBitField(BitField bf);
-    void onChoke(Choke c);
     void onHave(Have h);
     void onInterested(Interested in);
     void onNotInterested(NotInterested nin);
     void onPiece(Piece p);
     void onRequest(Request r);
+    void onChoke(Choke c);
     void onUnChoke(UnChoke unc);
     void onPeerJoined(int peer_id);
     void onPeerLeft(int peer_id);

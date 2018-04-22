@@ -1,8 +1,12 @@
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+
+import javax.swing.Timer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +22,10 @@ import messages.Piece;
 import messages.Request;
 import messages.UnChoke;
 
+/**
+ * @author Washington Garcia
+ */
+
 public class BitTorrentProtocol implements MessageListener
 {
     private SingletonCommon common_cfg;
@@ -29,9 +37,20 @@ public class BitTorrentProtocol implements MessageListener
     private DuplexServer listener;
     private HashMap<Integer, BitSet> peer_to_have_field;
     private int pieces;
-    
+    private int numberOfPreferredNeighbors;
+    private int unchokingInterval;
+    private int optimisticUnchokingInterval;
+
+    private ArrayList<Integer> choked_peers; // a 
+    private ArrayList<Integer> preferred_peers; // b
+    private int optimistic_unchoked_peer; // c
+    private ArrayList<Integer> interested_peers; // = a + b + c
+
     private Logger LOGGER = LoggerFactory.getLogger(BitTorrentProtocol.class);
-        
+    
+    private Timer unchoke_timer;
+    private Timer optim_unchoke_timer;
+
     public BitTorrentProtocol(SingletonCommon ccfg, SingletonPeerInfo pcfg, int peer_id) throws Exception
     {
         // load in peer meta data here
@@ -40,6 +59,9 @@ public class BitTorrentProtocol implements MessageListener
         myId = peer_id;
         my_info = peer_cfg.peerInfoMap.get(myId);
         hasfile = my_info.getHasFile_or_not();
+        numberOfPreferredNeighbors = ccfg.NumOfPrefNbrs; // k
+        unchokingInterval = ccfg.UnchokingInt; // p
+        optimisticUnchokingInterval = ccfg.OptUnchokingInt; // m
 
         // we have 306 pieces (FileSize // PieceSize)
         String pwd = System.getProperty("user.dir");
@@ -52,9 +74,16 @@ public class BitTorrentProtocol implements MessageListener
         }
 
         peer_to_have_field = new HashMap<>();
+        interested_peers = new ArrayList<>();
+        optimistic_unchoked_peer = -1;
+        preferred_peers = new ArrayList<>();
+        choked_peers = new ArrayList<>();
 
         LOGGER.debug("Starting P2P Protocol for Peer" + myId + ".");
         
+        // Start timers and let network latency add randomness
+        init_timers();
+
         // start server to listen for messages. 
         listener = new DuplexServer(my_info, myId, this);
 
@@ -69,6 +98,42 @@ public class BitTorrentProtocol implements MessageListener
             }           
         }
     }
+
+    // Set up the protocol timers    
+    private void init_timers()
+    {
+        unchoke_timer = new Timer(unchokingInterval * 1000, new ActionListener(){
+        
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                recalculate_preferred_peers();
+            }
+        });
+        unchoke_timer.setRepeats(true);
+        unchoke_timer.start();
+
+        optim_unchoke_timer = new Timer(optimisticUnchokingInterval * 1000, new ActionListener(){
+        
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                recalculate_optim_unchoke();
+            }
+        });
+        optim_unchoke_timer.setRepeats(true);
+        optim_unchoke_timer.start();
+    }
+
+    /////////// Timer data handlers
+
+    private void recalculate_preferred_peers() {
+        LOGGER.info("Peer ["+ myId + "] has the preffered neighbors []");
+    }
+
+    private void recalculate_optim_unchoke() {
+        LOGGER.info("Peer ["+ myId + "] has the optimistically unchoked neighbor [" + optimistic_unchoked_peer + "]");
+    }
+
+    /////////// Meta data handlers
 
     private MessageType check_interest(BitField bf) {
         // Determine if send interested or not interested
@@ -105,6 +170,8 @@ public class BitTorrentProtocol implements MessageListener
             LOGGER.debug("Got a HAVE for an unitialized Peer, ID=" + from_id);
         }
     }
+
+    ////////////// BTP Event handlers
 
 	@Override
 	public void onHandShake(HandShake hs) {
@@ -153,11 +220,6 @@ public class BitTorrentProtocol implements MessageListener
 	}
 
 	@Override
-	public void onChoke(Choke c) {
-		
-	}
-
-	@Override
 	public void onHave(Have h) {
         int idx = h.getpieceIndex();
         int from_id = h.getpeerId();
@@ -180,27 +242,47 @@ public class BitTorrentProtocol implements MessageListener
 	public void onInterested(Interested in) {
         int from_id = in.getpeerId();
         LOGGER.info("Peer [" + myId + "] received the the 'interested' message from [" + from_id + "].");
+
+        if (!interested_peers.contains(Integer.valueOf(from_id))) {
+            interested_peers.add(Integer.valueOf(from_id));
+        }
 	}
 
 	@Override
 	public void onNotInterested(NotInterested nin) {
 		int from_id = nin.getpeerId();
         LOGGER.info("Peer [" + myId + "] received the the 'not interested' message from [" + from_id + "].");
+
+        if (interested_peers.contains(Integer.valueOf(from_id))) {
+            interested_peers.remove(Integer.valueOf(from_id));
+        }
 	}
 
 	@Override
 	public void onPiece(Piece p) {
-		
+        int from_id = p.getpeerId();
+        LOGGER.info("Peer [" + myId + "] received piece from [" + from_id + "].");
 	}
 
 	@Override
 	public void onRequest(Request r) {
+        int from_id = r.getpeerId();
+        LOGGER.info("Peer [" + myId + "] received request from [" + from_id + "].");
 		
 	}
 
+    @Override
+	public void onChoke(Choke c) {
+        int from_id = c.getpeerId();
+        LOGGER.info("Peer [" + myId + "] is choked by [" + from_id + "].");
+		
+    }
+    
 	@Override
 	public void onUnChoke(UnChoke unc) {
-		
+        // Send a request message. A reply is not guaranteed.
+        int from_id = unc.getpeerId();
+        LOGGER.info("Peer [" + myId + "] is unchoked by [" + from_id + "].");
 	}
 
 	@Override
