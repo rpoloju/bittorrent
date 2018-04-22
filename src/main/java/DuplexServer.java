@@ -24,8 +24,13 @@ public class DuplexServer extends Thread implements Runnable
     private int my_id;
 
 
-    public DuplexServer(int port, int id, BitTorrentProtocol btp) throws Exception
+    public DuplexServer(RemotePeerInfo my_info, int id, BitTorrentProtocol btp) throws Exception
     {   
+        int port = my_info.getPeerPortNumber();
+        String hostname = my_info.getPeerHostName();
+        int hasfile = my_info.getHasFile_or_not();
+        System.out.println("CONFIG: " + hostname + ":" + port + " hasfile: " + hasfile);
+
         // clientsToInit = new ArrayList<>();
         mh = new MessageHandler();
         mh.register_listener(btp);
@@ -60,7 +65,10 @@ public class DuplexServer extends Thread implements Runnable
         Random r = new Random();
         int temp = r.nextInt();
         id_to_client.put(temp, ch);
-        // I am receiving an unknown peer so don't have to send resolution msg. 
+
+        // Peer already knew my id, but send anyway to update BtP
+        HandShake hs = new HandShake(my_id);
+        ch.write(ByteBuffer.wrap(hs.getPayload()));    
     }
 
     public void resolve_socket(String hostname, int port, int id_to_resolve)
@@ -72,19 +80,36 @@ public class DuplexServer extends Thread implements Runnable
             return;
         }
 
-        ClientHandler get = id_to_client.remove(old_key);
-        id_to_client.put(id_to_resolve, get);
+        if (old_key == id_to_resolve) {
+            // Got an id we already knew.
+            System.out.printf("The ID matched existing ID=%d and is OK\n", id_to_resolve);
+        }
+        else {
+            ClientHandler get = id_to_client.remove(old_key);
+            id_to_client.put(id_to_resolve, get);
+    
+            System.out.printf("ClientHandler successfully resolved to %d\n", id_to_resolve);
+        }
 
-        System.out.printf("ClientHandler successfully resolved to %d\n", id_to_resolve);
+        // Notify BtP
+        mh.peer_joined(id_to_resolve);
     }
 
-    // public void broadcast_to_peers(String message) throws IOException
-    // {
-    //     for(Integer id : id_to_client.keySet()) {
-    //         ClientHandler ch = id_to_client.get(id);
-    //         ch.write(message);
-    //     }
-    // }
+    public void clean_socket(String hostname, int port)
+    {
+        int peer_gone = get_peer_id(hostname, port);
+
+        if (peer_gone == -1) {
+            System.out.printf("Peer with ID=%d left but was not registered!\n", peer_gone);
+            return;
+        }
+
+        id_to_client.remove(peer_gone);
+        System.out.printf("ClientHandler successfully removed %d\n", peer_gone);
+
+        // Notify BtP
+        mh.peer_left(peer_gone);
+    }
 
     public void broadcast_to_peers(ByteBuffer message) throws IOException
     {
@@ -252,6 +277,7 @@ public class DuplexServer extends Thread implements Runnable
                 SocketChannel channelClient = (SocketChannel) key.channel();
                 if (!channelClient.isOpen()) {
                     System.out.println("Channel terminated by client");
+                    parent.clean_socket(hostname, port);                    
                 }
                 ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize + 5);
                 buffer.clear();
@@ -259,6 +285,7 @@ public class DuplexServer extends Thread implements Runnable
                 if (buffer.get(0) == 0) {
                     System.out.println("Nothing to read.");
                     channelClient.close();
+                    parent.clean_socket(hostname, port);
                     return;
                 }    
                 // channelClient.write(ByteBuffer.wrap(new String("Hello").getBytes()));
@@ -280,8 +307,6 @@ public class DuplexServer extends Thread implements Runnable
         // }
 
         public void write(ByteBuffer buffer) throws IOException {
-            String s = new String(buffer.array());
-
             // channel.write(buffer);
             write_queue.add(buffer);
         }

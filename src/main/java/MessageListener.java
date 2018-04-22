@@ -18,4 +18,6 @@ public interface MessageListener {
     void onPiece(Piece p);
     void onRequest(Request r);
     void onUnChoke(UnChoke unc);
+    void onPeerJoined(int peer_id);
+    void onPeerLeft(int peer_id);
 }

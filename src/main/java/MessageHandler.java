@@ -131,4 +131,20 @@ public class MessageHandler
 
         
     }
+
+    public void peer_joined(int peer_id)
+    {
+        for (MessageListener mListener : message_listeners)
+        {
+            mListener.onPeerJoined(peer_id);
+        }
+    }
+
+    public void peer_left(int peer_id)
+    {
+        for (MessageListener mListener : message_listeners)
+        {
+            mListener.onPeerLeft(peer_id);
+        }
+    }
 }

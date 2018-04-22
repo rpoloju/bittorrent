@@ -1,6 +1,8 @@
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 
 import messages.BitField;
 import messages.Choke;
@@ -18,11 +20,10 @@ public class BitTorrentProtocol implements MessageListener
     private SingletonPeerInfo peer_cfg;
     private RemotePeerInfo my_info;
     private int myId;
-    private int port;
-    private String hostname;
     private int hasfile;
     private BitSet have_field;
     private DuplexServer listener;
+    private HashMap<Integer, BitSet> peer_to_have_field;
 
     
     public BitTorrentProtocol(SingletonCommon ccfg, SingletonPeerInfo pcfg, int peer_id) throws Exception
@@ -31,12 +32,8 @@ public class BitTorrentProtocol implements MessageListener
         common_cfg = ccfg;
         peer_cfg = pcfg;
         myId = peer_id;
-
         my_info = peer_cfg.peerInfoMap.get(myId);
-        port = my_info.getPeerPortNumber();
-        hostname = my_info.getPeerHostName();
         hasfile = my_info.getHasFile_or_not();
-        System.out.println("CONFIG: " + hostname + ":" + port + " hasfile: " + hasfile);
 
         // we have 306 pieces (FileSize // PieceSize)
         String pwd = System.getProperty("user.dir");
@@ -48,8 +45,10 @@ public class BitTorrentProtocol implements MessageListener
             have_field.set(0, pieces);
         }
 
+        peer_to_have_field = new HashMap<>();
+
         // start server to listen for messages. 
-        listener = new DuplexServer(port, myId, this);
+        listener = new DuplexServer(my_info, myId, this);
         System.out.println("Initiated listener");
 
         if (myId > 1001)
@@ -121,6 +120,16 @@ public class BitTorrentProtocol implements MessageListener
 	@Override
 	public void onUnChoke(UnChoke unc) {
 		
+	}
+
+	@Override
+	public void onPeerJoined(int peer_id) {
+		System.out.println("A new friend with ID=" + peer_id + " has joined");
+	}
+
+	@Override
+	public void onPeerLeft(int peer_id) {
+		System.out.println("A friend left with ID=" + peer_id);
 	}
 
 }
