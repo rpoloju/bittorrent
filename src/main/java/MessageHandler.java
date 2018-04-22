@@ -51,7 +51,6 @@ public class MessageHandler
                 chunked_bytes += 14;
                 chunked_bytes += 10;
                 int peer_id = ByteBuffer.wrap(Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + 4)).getInt();
-                System.out.printf("Peerid is %d\n", peer_id);    
                 chunked_bytes += 4;
                 HandShake hs = new HandShake(peer_id);
                 result.put(Constants.RESOLVE, peer_id);
@@ -60,12 +59,14 @@ public class MessageHandler
             else
             {
                 // Got another type
-                // for (byte b : header) 
-                // {
-                //     System.out.println((int) b);
-                // }
+                
                 int message_length = ByteBuffer.wrap(header).getInt();
                 if (message_length == 0) return result;
+                if (message_length > buffer.array().length)
+                {
+                    System.err.println("Malformed message received: message_length=" + message_length);
+                    return result;
+                }
                 System.out.printf("Message length is %d\n", message_length);    
                 byte[] message = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + message_length);
                 int type = ByteBuffer.wrap(Arrays.copyOfRange(message, 0, 1)).getInt();

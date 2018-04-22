@@ -14,15 +14,14 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 
-import configuration.LogConfig;
-import io.IOStreamReader;
-import io.IOStreamWriter;
 
 public class MessageType {
 
 	static Map<Byte, String> messageType = new HashMap<>();
-
-	MessageType() {
+    int peer_id;
+    
+	MessageType(int peer_id) {
+        this.peer_id = peer_id;
 		messageType.put((byte) 0, "CHOKE");
 		messageType.put((byte) 1, "UNCHOKE");
 		messageType.put((byte) 2, "INTERESTED");
@@ -79,55 +78,35 @@ public class MessageType {
 
 	public byte[] getPayload() {
 		return this.message_payload;
-	}
+    }
 
-	public static MessageType getMessage(String type) throws ClassNotFoundException {
-		if (type.toUpperCase().equals("CHOKE"))
-			return new Choke();
-		else if (type.toUpperCase().equals("UNCHOKE"))
-			return new UnChoke();
-		else if (type.toUpperCase().equals("INTERESTED"))
-			return new Interested();
-		else if (type.toUpperCase().equals("NOTINTERESTED"))
-			return new NotInterested();
-		else if (type.toUpperCase().equals("HAVE"))
-			return new Have();
-		else if (type.toUpperCase().equals("BITFIELD"))
-			return new BitField(new BitSet());
-		else if (type.toUpperCase().equals("REQUEST"))
-			return new Request();
-		else if (type.toUpperCase().equals("PIECE"))
-			return new Piece();
-		else if (type.toUpperCase().equals("HANDSHAKE"))
-			return new HandShake(0);
-		else {
-			throw new ClassNotFoundException("Message of type " + type + " not found");
-		}
+    public int getpeerId() {
+        return this.peer_id;
+    }
 
-	}
+	// public static MessageType getMessage(String type) throws ClassNotFoundException {
+	// 	if (type.toUpperCase().equals("CHOKE"))
+	// 		return new Choke();
+	// 	else if (type.toUpperCase().equals("UNCHOKE"))
+	// 		return new UnChoke();
+	// 	else if (type.toUpperCase().equals("INTERESTED"))
+	// 		return new Interested();
+	// 	else if (type.toUpperCase().equals("NOTINTERESTED"))
+	// 		return new NotInterested();
+	// 	else if (type.toUpperCase().equals("HAVE"))
+	// 		return new Have();
+	// 	else if (type.toUpperCase().equals("BITFIELD"))
+	// 		return new BitField(new BitSet());
+	// 	else if (type.toUpperCase().equals("REQUEST"))
+	// 		return new Request();
+	// 	else if (type.toUpperCase().equals("PIECE"))
+	// 		return new Piece();
+	// 	else if (type.toUpperCase().equals("HANDSHAKE"))
+	// 		return new HandShake(0);
+	// 	else {
+	// 		throw new ClassNotFoundException("Message of type " + type + " not found");
+	// 	}
 
-	// Method to read from OubjectInputStream
-	public void read(IOStreamReader ioStreamReader, int length) throws IOException {
-		if (length > 0) {
-			message_payload = new byte[length];
-			if (message_payload != null && message_payload.length > 0)
-				ioStreamReader.readFully(message_payload, 0, length);
-			else {
-				LogConfig.getLogRecord().debugLog("Payload is empty");
-				throw new IOException("Payload is empty");
-			}
-		}
-	}
-
-	// Method to write to ObjectOutputStream
-	public void write(IOStreamWriter ioStreamWriter) throws IOException {
-		LogConfig.getLogRecord().debugLog("writing message");
-		byte buf[] = ByteBuffer.allocate(4 + message_length).putInt(message_length).array();
-		buf[4] = getCodeFromMessageType(this.message_type);
-		if (message_payload != null && message_payload.length > 0) {
-			System.arraycopy(message_payload, 0, buf, 5, message_payload.length);
-		}
-		ioStreamWriter.write(buf);
-	}
+	// }
 
 }

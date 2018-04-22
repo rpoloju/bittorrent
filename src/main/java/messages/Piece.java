@@ -3,16 +3,16 @@ package messages;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import configuration.LogConfig;
-import io.IOStreamReader;
 
 public class Piece extends MessageType {
 
-	public Piece() {
+	public Piece(int peer_id) {
+        super(peer_id);
 		super.message_type = "PIECE";
 	}
 
-	public Piece(byte[] pieceIndex, byte[] pieceContent) {
+	public Piece(int peer_id, byte[] pieceIndex, byte[] pieceContent) {
+        super(peer_id);
 		super.message_type = "PIECE";
 		
 		super.message_payload = new byte[pieceContent.length + 4];
@@ -36,18 +36,5 @@ public class Piece extends MessageType {
 																			// length
 		System.arraycopy(super.message_payload, 4, pieceContent, 0, pieceContent.length);
 		return pieceContent;
-	}
-
-	@Override
-	public void read(IOStreamReader ioStreamReader, int length) throws IOException {
-		if (length > 0) {
-			message_payload = new byte[length];
-			if (message_payload != null && message_payload.length > 0)
-				ioStreamReader.readFully(message_payload, 0, length);
-			else {
-				LogConfig.getLogRecord().debugLog("Payload is empty");
-				throw new IOException("Payload is empty");
-			}
-		}
 	}
 }

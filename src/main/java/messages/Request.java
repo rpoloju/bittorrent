@@ -2,11 +2,13 @@ package messages;
 
 public class Request extends MessageType {
 
-	public Request() {
+	public Request(int peer_id) {
+        super(peer_id);
 		super.message_type = "REQUEST";
 	}
 
-	public Request(byte[] requestingPieceIndexField) {
+	public Request(int peer_id, byte[] requestingPieceIndexField) {
+        super(peer_id);
 		super.message_type = "REQUEST";
 		super.message_payload = requestingPieceIndexField;
 		super.message_length += super.message_payload.length;

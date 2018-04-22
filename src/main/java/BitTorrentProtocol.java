@@ -1,3 +1,5 @@
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.BitSet;
 
 import messages.BitField;
@@ -64,7 +66,16 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onHandShake(HandShake hs) {
-		System.out.println("We have handshake");
+        System.out.println("We have handshake");
+        int from_id = hs.getpeerId();
+
+        // create bitfield & send
+        BitField bf = new BitField(from_id, have_field);
+        try {
+            listener.send_message(ByteBuffer.wrap(bf.getPayload()), from_id);
+        } catch (IOException e) {
+            System.err.println(e.getStackTrace());
+        }
 	}
 
 	@Override

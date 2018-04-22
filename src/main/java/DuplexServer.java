@@ -1,3 +1,4 @@
+import java.awt.TrayIcon.MessageType;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -97,6 +98,19 @@ public class DuplexServer extends Thread implements Runnable
         for(Integer id : id_to_client.keySet()) {
             ClientHandler ch = id_to_client.get(id);
             ch.write(message);
+        }
+    }
+
+    public void send_message(ByteBuffer buffer, int peer_id) throws IOException
+    {
+        ClientHandler ch  = id_to_client.get(peer_id);
+        if (ch != null)
+        {
+            ch.write(buffer);
+        }
+        else
+        {
+            System.out.println("Tried to send to a non-existant peer ID.");
         }
     }
 
