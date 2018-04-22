@@ -145,7 +145,13 @@ public class MessageHandler
                 mListener.onHandShake((HandShake) message);
             } else if (message instanceof BitField) {
                 mListener.onBitField((BitField) message);
-            } 
+            } else if (message instanceof NotInterested) {
+                mListener.onNotInterested((NotInterested) message);
+            } else if (message instanceof Interested) {
+                mListener.onInterested((Interested) message);
+            } else if (message instanceof Have) {
+                mListener.onHave((Have) message);
+            }
         }
 
         

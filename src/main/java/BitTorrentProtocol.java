@@ -159,18 +159,33 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onHave(Have h) {
+        int idx = h.getpieceIndex();
+        int from_id = h.getpeerId();
+        LOGGER.info("Peer [" + myId + "] received the 'have' message from [" + from_id + "] for the piece [" + idx + "].");
         update_peer_map(h);
-        
+
+        BitSet bs = new BitSet(pieces);
+        bs.set(idx);
+        MessageType response = check_interest(new BitField(from_id, bs));
+
+        try {       
+            listener.send_message(response.get_buffer(), from_id);
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage());
+            System.out.println(e.getStackTrace());
+        }
 	}
 
 	@Override
 	public void onInterested(Interested in) {
-		
+        int from_id = in.getpeerId();
+        LOGGER.info("Peer [" + myId + "] received the the 'interested' message from [" + from_id + "].");
 	}
 
 	@Override
 	public void onNotInterested(NotInterested nin) {
-		
+		int from_id = nin.getpeerId();
+        LOGGER.info("Peer [" + myId + "] received the the 'not interested' message from [" + from_id + "].");
 	}
 
 	@Override
