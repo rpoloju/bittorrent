@@ -17,6 +17,9 @@ public class Peer
         // read PeerInfo.cfg
         peer_cfg = SingletonPeerInfo.getInstance();
 
+        // Set system property id
+        System.setProperty("PEER_ID", Integer.toString(peer_id));
+
         btp = new BitTorrentProtocol(common_cfg, peer_cfg, peer_id);
     }
 }

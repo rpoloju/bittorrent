@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import messages.BitField;
 import messages.Choke;
 import messages.HandShake;
@@ -24,8 +27,9 @@ public class BitTorrentProtocol implements MessageListener
     private BitSet have_field;
     private DuplexServer listener;
     private HashMap<Integer, BitSet> peer_to_have_field;
-
     
+    private Logger LOGGER = LoggerFactory.getLogger(BitTorrentProtocol.class);
+        
     public BitTorrentProtocol(SingletonCommon ccfg, SingletonPeerInfo pcfg, int peer_id) throws Exception
     {
         // load in peer meta data here
@@ -49,8 +53,9 @@ public class BitTorrentProtocol implements MessageListener
 
         // start server to listen for messages. 
         listener = new DuplexServer(my_info, myId, this);
-        System.out.println("Initiated listener");
-
+        // System.out.println("Initiated listener");
+        LOGGER.debug("Initiaited Listener");
+        
         if (myId > 1001)
         {
             int peers_to_connect = myId - 1001;
@@ -65,7 +70,8 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onHandShake(HandShake hs) {
-        System.out.println("We have handshake");
+        // System.out.println("We have handshake");
+        
         int from_id = hs.getpeerId();
 
         // create bitfield & send
