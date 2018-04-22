@@ -53,7 +53,7 @@ public class BitTorrentProtocol implements MessageListener
 
         peer_to_have_field = new HashMap<>();
 
-        LOGGER.debug("Starting P2P Protocol.");
+        LOGGER.debug("Starting P2P Protocol for Peer" + myId + ".");
         
         // start server to listen for messages. 
         listener = new DuplexServer(my_info, myId, this);
@@ -74,12 +74,6 @@ public class BitTorrentProtocol implements MessageListener
         // Determine if send interested or not interested
         int from_id = bf.getpeerId();                
         BitSet peer_set = bf.getBitSet();
-
-        if (peer_set.length() != have_field.length()) {
-            LOGGER.warn(String.format("Bitfield mismatch! length ID=%d:%d, ID=%d:%d", 
-            from_id, peer_set.length(), myId, have_field.length()));
-            return new NotInterested(myId);
-        }
 
         for (int i = 0; i < bf.getLength(); i++) {
             boolean mine = have_field.get(i);

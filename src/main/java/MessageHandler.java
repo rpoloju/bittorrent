@@ -94,7 +94,7 @@ public class MessageHandler
                 
                 // Handle each type of message now and call broadcaster
                 if (type == Constants.BITFIELD) {
-                    byte[] payload = Arrays.copyOfRange(message, 1, message_length - 1);                
+                    byte[] payload = Arrays.copyOfRange(message, 1, message_length);                
                     BitSet bs = BitSet.valueOf(payload);
                     BitField bf = new BitField(given_id, bs);
                     chunks.add(bf);
@@ -105,7 +105,7 @@ public class MessageHandler
                     NotInterested unin = new NotInterested(given_id);
                     chunks.add(unin);
                 } else if (type == Constants.HAVE) {
-                    byte[] payload = Arrays.copyOfRange(message, 1, message_length - 1);                
+                    byte[] payload = Arrays.copyOfRange(message, 1, message_length);                
                     int idx = ByteBuffer.wrap(payload).getInt();
                     Have h = new Have(given_id, idx);
                     chunks.add(h);                    
