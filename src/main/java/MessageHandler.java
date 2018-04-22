@@ -6,11 +6,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 
 import javax.xml.bind.DatatypeConverter;
 
+import messages.BitField;
 import messages.HandShake;
+import messages.MessageType;
 
 // Class to turn byte blobs into something useful
 public class MessageHandler 
@@ -30,13 +33,14 @@ public class MessageHandler
         message_listeners.add(ml);        
     }
 
-    public HashMap<Integer, Integer> chunk_messages(ByteBuffer buffer) 
+    public ArrayList<MessageType> chunk_messages(ByteBuffer buffer, int some_id) 
     {
         int start = 0;
         int end = 1;        
         int chunked_bytes = 0;
-        HashMap<Integer, Integer> result = new HashMap<>();
+        int given_id = some_id;
         System.out.printf("length is %d\n", buffer.array().length);    
+        ArrayList<MessageType> chunks = new ArrayList<>();
 
         while (chunked_bytes < buffer.array().length)
         {
@@ -52,105 +56,50 @@ public class MessageHandler
                 chunked_bytes += 10;
                 int peer_id = ByteBuffer.wrap(Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + 4)).getInt();
                 chunked_bytes += 4;
+                // Set local scope's id for next messages. Append to result so duplex eventually gets it. 
+                given_id = peer_id;            
                 HandShake hs = new HandShake(peer_id);
-                result.put(Constants.RESOLVE, peer_id);
-                broadcast_handshake(hs);
+                chunks.add(hs);
             }
             else
             {
                 // Got another type
                 
                 int message_length = ByteBuffer.wrap(header).getInt();
-                if (message_length == 0) return result;
+                if (message_length == 0) 
+                    return chunks;
+                    
                 if (message_length > buffer.array().length)
                 {
                     System.err.println("Malformed message received: message_length=" + message_length);
-                    return result;
+                    return chunks;
                 }
+
                 System.out.printf("Message length is %d\n", message_length);    
                 byte[] message = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + message_length);
                 int type = ByteBuffer.wrap(Arrays.copyOfRange(message, 0, 1)).getInt();
-
+                
                 byte[] payload = Arrays.copyOfRange(message, 1, message_length);
-                System.out.printf("Got type %d\n", type);    
-
+                System.out.printf("Got type %d\n", MessageType.getTypeFromMessageValue((byte)type));    
+                
+                // Handle each type of message now and call broadcaster
+                if (type == Constants.BITFIELD) {
+                    BitSet bs = BitSet.valueOf(payload);
+                    BitField bf = new BitField(given_id, bs);
+                    chunks.add(bf);
+                } 
             }
 
         }
 
-        return result;
+        return chunks;
     }
 
-    private void handle_string(String hostname, int port, String msg)
+    public void handle_messages(ArrayList<MessageType> messages)
     {
-
-        // System.out.printf("%s:%s says: %s\n", hostname, port, msg);
-        System.out.println(String.format("Current state: %s", previous_command));
-
-        String toks[] = msg.split(",");
-        String plane = toks[0];
-        if (plane.equalsIgnoreCase("CTRL"))
-        {
-            String type = toks[1];
-            if (type.equalsIgnoreCase("ID")) 
-            {
-                int id = Integer.parseInt(toks[2]);
-                System.out.printf("%s:%s sent a CTRL message: Resolve ID %d\n", hostname, port, id);         
-            }
-            else if (type.equalsIgnoreCase("IMG")) 
-            {
-                size_to_expect = Integer.parseInt(toks[2]);
-                System.out.printf("%s:%s sent a CTRL message: Expect an image of %d bytes\n", hostname, port, size_to_expect);                                         
-                init_state(size_to_expect, type);
-            }
-            else 
-            {
-                System.out.printf("Got an unhandled CTRL message: %s\n", msg);
-            }
-        } 
-        else if (plane.equalsIgnoreCase("DATA"))
-        {
-            String part = toks[2];
-            handle_image(hostname, port, part);
+        for (MessageType msg : messages) {
+            broadcast_X(msg);   
         }
-        else 
-        {
-            System.out.printf("Unknown plane received \n");
-        }
-    }
-
-    private void handle_image(String hostname, int port, String part)
-    {
-        if (previous_command.equals("IMG")) 
-        {
-            byte[] decoded_part = DatatypeConverter.parseBase64Binary(part);
-            try {
-                temp_buffer.write(decoded_part);
-            } catch (IOException e) {
-                System.err.println(e.getStackTrace());                      
-            }
-
-            System.out.printf("Received %d decoded bytes so far.\n", temp_buffer.size()); 
-            if (temp_buffer.size() != size_to_expect) 
-            {
-                return;
-            }
-        } 
-        else 
-        {
-            System.out.printf("Not sure what to do with this un-delimited message.\n"); 
-            return;
-        }
-
-        try {
-            Path path = Paths.get("/home/wgar/p2p/image2.jpg");
-            Files.write(path, temp_buffer.toByteArray());    
-            System.out.printf("Wrote the file to %s\n", path.getFileName()); 
-            clear_state();         
-        } catch (IOException e) {
-            System.err.println(e.getStackTrace());                 
-        }
-        
     }
 
     private void init_state(int size, String type)
@@ -166,11 +115,17 @@ public class MessageHandler
         previous_command = "INIT";
     }
 
-    private void broadcast_handshake(HandShake hs)
+    private void broadcast_X(MessageType message)
     {
         for (MessageListener mListener : message_listeners)
-        {
-            mListener.onHandShake(hs);
+        {   
+            if (message instanceof HandShake) {
+                mListener.onHandShake((HandShake) message);
+            } else if (message instanceof BitField) {
+                mListener.onBitField((BitField) message);
+            } 
         }
+
+        
     }
 }

@@ -7,10 +7,11 @@ public class BitField extends MessageType {
         super(peer_id);
 		super.message_type = "BITFIELD";
 		super.message_payload = bits.toByteArray();
-		super.message_length += super.message_payload.length; //Variable
+        super.message_length += super.message_payload.length; 
+        super.message_length += 1;
 	}
 	
-	public BitSet getBitSet(){
+	public BitSet getBitSet() {
 		return BitSet.valueOf(super.message_payload);
 	}
 

@@ -1,4 +1,3 @@
-import java.awt.TrayIcon.MessageType;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -10,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
+import messages.MessageType;
 
 import messages.HandShake;
 
@@ -65,14 +65,7 @@ public class DuplexServer extends Thread implements Runnable
 
     public void resolve_socket(String hostname, int port, int id_to_resolve)
     {
-        int old_key = -1;
-        for (int key : id_to_client.keySet()) {
-            ClientHandler ch = id_to_client.get(key);
-            if (ch.hostname == hostname && ch.port == port) {
-                old_key = key;
-                break;
-            }
-        }
+        int old_key = get_peer_id(hostname, port);
 
         if (old_key == -1) {
             System.out.printf("The requested resolution for ID=%d could not be found!\n", id_to_resolve);
@@ -85,13 +78,13 @@ public class DuplexServer extends Thread implements Runnable
         System.out.printf("ClientHandler successfully resolved to %d\n", id_to_resolve);
     }
 
-    public void broadcast_to_peers(String message) throws IOException
-    {
-        for(Integer id : id_to_client.keySet()) {
-            ClientHandler ch = id_to_client.get(id);
-            ch.write(message);
-        }
-    }
+    // public void broadcast_to_peers(String message) throws IOException
+    // {
+    //     for(Integer id : id_to_client.keySet()) {
+    //         ClientHandler ch = id_to_client.get(id);
+    //         ch.write(message);
+    //     }
+    // }
 
     public void broadcast_to_peers(ByteBuffer message) throws IOException
     {
@@ -114,18 +107,38 @@ public class DuplexServer extends Thread implements Runnable
         }
     }
 
+    // Handle the stream of one peer.
     private void process_message(String hostname, int port, ByteBuffer buffer) throws IOException
     {
-        HashMap<Integer, Integer> result = mh.chunk_messages(buffer);
+        int peer_id = get_peer_id(hostname, port);
 
-        for (int key : result.keySet())
+        ArrayList<MessageType> result = mh.chunk_messages(buffer, peer_id);
+
+        for (MessageType msg : result)
         {
-            if (key == Constants.RESOLVE)
+            if (msg instanceof HandShake)
             {
-                int peer_id = result.get(key);
+                HandShake hs = (HandShake) msg;
+                peer_id = msg.getpeerId();
                 resolve_socket(hostname, port, peer_id);
             }
         }
+
+        mh.handle_messages(result);
+    }
+
+    private int get_peer_id(String hostname, int port) 
+    {
+        int id = -1;
+        for (int key : id_to_client.keySet()) {
+            ClientHandler ch = id_to_client.get(key);
+            if (ch.hostname == hostname && ch.port == port) {
+                id = key;
+                break;
+            }
+        }
+
+        return id;
     }
 
     /////////////////////////
@@ -198,6 +211,7 @@ public class DuplexServer extends Thread implements Runnable
         int port;
         byte[] temp_buffer;
         SingletonCommon common_cfg;
+        ArrayList<ByteBuffer> write_queue;
 
         public ClientHandler(SocketChannel sc, DuplexServer dp) throws IOException {
             parent = dp;    
@@ -208,6 +222,7 @@ public class DuplexServer extends Thread implements Runnable
             channel.register(my_selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
             hostname = channel.socket().getInetAddress().getHostName();
             port = channel.socket().getPort();
+            write_queue = new ArrayList<>();
         }
 
         @Override
@@ -246,24 +261,29 @@ public class DuplexServer extends Thread implements Runnable
                     channelClient.close();
                     return;
                 }    
-
-                // parent.process_message(hostname, port, new String(buffer.array()));
+                // channelClient.write(ByteBuffer.wrap(new String("Hello").getBytes()));
                 parent.process_message(hostname, port, buffer);
 
             } else if (key.isWritable()) {
-
+                SocketChannel channelClient = (SocketChannel) key.channel();
+                for (ByteBuffer bb : write_queue){
+                    System.out.printf("Sending %d bytes\n", bb.array().length);
+                    
+                    channelClient.write(bb);
+                }
+                write_queue.clear();
             }
         }
     
-        public void write(String input) throws IOException {
-            channel.write(ByteBuffer.wrap(input.getBytes()));
-        }
+        // public void write(String input) throws IOException {
+            // channel.write(ByteBuffer.wrap(input.getBytes()));
+        // }
 
         public void write(ByteBuffer buffer) throws IOException {
             String s = new String(buffer.array());
-            System.out.printf("Sending: %s\n", s);
 
-            channel.write(buffer);
+            // channel.write(buffer);
+            write_queue.add(buffer);
         }
     }
 }

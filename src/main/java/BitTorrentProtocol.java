@@ -72,7 +72,9 @@ public class BitTorrentProtocol implements MessageListener
         // create bitfield & send
         BitField bf = new BitField(from_id, have_field);
         try {
-            listener.send_message(ByteBuffer.wrap(bf.getPayload()), from_id);
+            System.out.println("Sending my bitfield");
+            // listener.send_message(, from_id);
+            listener.send_message(bf.get_buffer(), from_id);
         } catch (IOException e) {
             System.err.println(e.getStackTrace());
         }
@@ -80,6 +82,7 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onBitField(BitField bf) {
+        System.out.println("We have bitfield");
 		
 	}
 

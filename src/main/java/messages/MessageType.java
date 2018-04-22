@@ -81,32 +81,21 @@ public class MessageType {
     }
 
     public int getpeerId() {
+        // internal peer id for DuplexServer
         return this.peer_id;
     }
 
-	// public static MessageType getMessage(String type) throws ClassNotFoundException {
-	// 	if (type.toUpperCase().equals("CHOKE"))
-	// 		return new Choke();
-	// 	else if (type.toUpperCase().equals("UNCHOKE"))
-	// 		return new UnChoke();
-	// 	else if (type.toUpperCase().equals("INTERESTED"))
-	// 		return new Interested();
-	// 	else if (type.toUpperCase().equals("NOTINTERESTED"))
-	// 		return new NotInterested();
-	// 	else if (type.toUpperCase().equals("HAVE"))
-	// 		return new Have();
-	// 	else if (type.toUpperCase().equals("BITFIELD"))
-	// 		return new BitField(new BitSet());
-	// 	else if (type.toUpperCase().equals("REQUEST"))
-	// 		return new Request();
-	// 	else if (type.toUpperCase().equals("PIECE"))
-	// 		return new Piece();
-	// 	else if (type.toUpperCase().equals("HANDSHAKE"))
-	// 		return new HandShake(0);
-	// 	else {
-	// 		throw new ClassNotFoundException("Message of type " + type + " not found");
-	// 	}
+    public ByteBuffer get_buffer() {
+        byte[] message_length = ByteBuffer.allocate(4).putInt(1 + this.message_payload.length).array();
+        Byte type = getCodeFromMessageType(this.message_type);
+        
+        int total_length = 4 + 1 + this.message_payload.length;
+        ByteBuffer bb = ByteBuffer.allocate(total_length);
+        bb.put(message_length); // First 4 bytes
+        bb.put(type); // type
+        bb.put(this.message_payload); // next N
 
-	// }
+        return bb;
+    }
 
 }

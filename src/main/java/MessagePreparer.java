@@ -33,7 +33,7 @@ public class MessagePreparer
         Path p = Paths.get(path);
         byte[] raw_image = Files.readAllBytes(p);
         String sending = String.format("<CTRL,IMG,%d>", raw_image.length);
-        listener.broadcast_to_peers(sending);
+        // listener.broadcast_to_peers(sending);
                 
         String encoded_image = DatatypeConverter.printBase64Binary(raw_image);
         
@@ -41,7 +41,7 @@ public class MessagePreparer
         for (String substring : Splitter.fixedLength(80).split(encoded_image))
         {
             sending = String.format("<DATA,IMG,%s>", substring);
-            listener.broadcast_to_peers(sending);
+            // listener.broadcast_to_peers(sending);
         }
     }
 
