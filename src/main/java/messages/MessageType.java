@@ -45,7 +45,7 @@ public class MessageType {
 			return 1;
 		case "INTERESTED":
 			return 2;
-		case "UNINTERESTED":
+		case "NOTINTERESTED":
 			return 3;
 		case "HAVE":
 			return 4;
@@ -66,7 +66,7 @@ public class MessageType {
 	 */
 	public int message_length = 1; // can be in the range from 1 to 5 inclusive
 	public String message_type = "";
-	public byte[] message_payload = null;
+	public byte[] message_payload = {};
 
 	public int getLength() {
 		return this.message_length;

@@ -12,6 +12,7 @@ import messages.Choke;
 import messages.HandShake;
 import messages.Have;
 import messages.Interested;
+import messages.MessageType;
 import messages.NotInterested;
 import messages.Piece;
 import messages.Request;
@@ -27,6 +28,7 @@ public class BitTorrentProtocol implements MessageListener
     private BitSet have_field;
     private DuplexServer listener;
     private HashMap<Integer, BitSet> peer_to_have_field;
+    private int pieces;
     
     private Logger LOGGER = LoggerFactory.getLogger(BitTorrentProtocol.class);
         
@@ -41,7 +43,7 @@ public class BitTorrentProtocol implements MessageListener
 
         // we have 306 pieces (FileSize // PieceSize)
         String pwd = System.getProperty("user.dir");
-        int pieces  = MessagePreparer.get_num_pieces(pwd + "/image.jpg");
+        pieces  = MessagePreparer.get_num_pieces(pwd + "/image.jpg");
 
         have_field = new BitSet(pieces);
         if (hasfile == 1) 
@@ -65,6 +67,48 @@ public class BitTorrentProtocol implements MessageListener
                 RemotePeerInfo prev_peer = peer_cfg.peerInfoMap.get(1001 + i);
                 listener.init_socket(prev_peer.getPeerHostName(), prev_peer.getPeerPortNumber(), 1001 + i);
             }           
+        }
+    }
+
+    private MessageType check_interest(BitField bf) {
+        // Determine if send interested or not interested
+        int from_id = bf.getpeerId();                
+        BitSet peer_set = bf.getBitSet();
+
+        if (peer_set.length() != have_field.length()) {
+            LOGGER.warn(String.format("Bitfield mismatch! length ID=%d:%d, ID=%d:%d", 
+            from_id, peer_set.length(), myId, have_field.length()));
+            return new NotInterested(myId);
+        }
+
+        for (int i = 0; i < bf.getLength(); i++) {
+            boolean mine = have_field.get(i);
+            boolean theirs = peer_set.get(i);
+
+            if (mine == false && theirs == true) {
+                LOGGER.debug("Sending INTERESTED to Peer " + from_id);
+                return new Interested(myId);
+            }
+        }
+
+        LOGGER.debug("Sending NOTINTERESTED to Peer " + from_id);        
+        return new NotInterested(myId);
+    }
+
+    private void update_peer_map(BitField bf) {
+       int from_id = bf.getpeerId();
+       
+       peer_to_have_field.put(from_id, bf.getBitSet());
+    }
+
+    private void update_peer_map(Have h) {
+        int from_id = h.getpeerId();
+
+        BitSet map_get = peer_to_have_field.get(from_id);
+        if (map_get != null) {
+            map_get.set(h.getpieceIndex());
+        } else {
+            LOGGER.debug("Got a HAVE for an unitialized Peer, ID=" + from_id);
         }
     }
 
@@ -102,7 +146,16 @@ public class BitTorrentProtocol implements MessageListener
 	public void onBitField(BitField bf) {
         int from_id = bf.getpeerId();
         LOGGER.debug("We have bitfield from Peer [" + from_id + "].");
-		
+        
+        update_peer_map(bf);
+        MessageType response = check_interest(bf);
+
+        try {       
+            listener.send_message(response.get_buffer(), from_id);
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage());
+            System.out.println(e.getStackTrace());
+        }
 	}
 
 	@Override
@@ -112,7 +165,8 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onHave(Have h) {
-		
+        update_peer_map(h);
+        
 	}
 
 	@Override

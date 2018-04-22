@@ -16,7 +16,10 @@ import org.slf4j.LoggerFactory;
 
 import messages.BitField;
 import messages.HandShake;
+import messages.Have;
+import messages.Interested;
 import messages.MessageType;
+import messages.NotInterested;
 
 // Class to turn byte blobs into something useful
 public class MessageHandler 
@@ -86,16 +89,27 @@ public class MessageHandler
                 //     System.out.println(new Integer((int)b));
                 // }
                 int type = Arrays.copyOfRange(message, 0, 1)[0];      
-                byte[] payload = Arrays.copyOfRange(message, 1, message_length - 1);
                 chunked_bytes += message_length;
                 LOGGER.debug(String.format("Got type %s", MessageType.getTypeFromMessageValue((byte)type)));    
                 
                 // Handle each type of message now and call broadcaster
                 if (type == Constants.BITFIELD) {
+                    byte[] payload = Arrays.copyOfRange(message, 1, message_length - 1);                
                     BitSet bs = BitSet.valueOf(payload);
                     BitField bf = new BitField(given_id, bs);
                     chunks.add(bf);
-                } 
+                } else if (type == Constants.INTERESTED) {
+                    Interested in = new Interested(given_id);
+                    chunks.add(in);
+                } else if (type == Constants.NOTINTERESTED) {
+                    NotInterested unin = new NotInterested(given_id);
+                    chunks.add(unin);
+                } else if (type == Constants.HAVE) {
+                    byte[] payload = Arrays.copyOfRange(message, 1, message_length - 1);                
+                    int idx = ByteBuffer.wrap(payload).getInt();
+                    Have h = new Have(given_id, idx);
+                    chunks.add(h);                    
+                }
             }
 
         }
