@@ -290,7 +290,7 @@ public class DuplexServer extends Thread implements Runnable
                     LOGGER.debug("Channel terminated by client");
                     parent.clean_socket(hostname, port);                    
                 }
-                ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize + 5);
+                ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize * 2);
                 buffer.clear();
                 channelClient.read(buffer);
                 if (buffer.get(0) == 0) { // Maybe change this so dont need hack
