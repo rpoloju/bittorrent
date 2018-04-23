@@ -16,6 +16,7 @@ public class BitField extends MessageType {
     }
     
     public boolean hasNothing() {
+        BitSet bs = BitSet.valueOf(super.message_payload);
         for (byte b : super.message_payload)
         {
             if ((int) b != 0)
@@ -25,5 +26,4 @@ public class BitField extends MessageType {
         }
         return true;        
     }
-
 }

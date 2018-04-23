@@ -180,6 +180,8 @@ public class MessageHandler
                 mListener.onUnChoke((UnChoke) message);
             } else if (message instanceof Request) {
                 mListener.onRequest((Request) message);
+            } else if (message instanceof Piece) {
+                mListener.onPiece((Piece) message);
             }
         }
 

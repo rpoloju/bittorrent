@@ -4,11 +4,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
-
-import javax.xml.bind.DatatypeConverter;
-
-import com.google.common.base.Splitter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +60,36 @@ public class FileProcessor
         } 
     }
 
+    public byte[] get_piece(int idx)
+    {
+        ByteBuffer piece_content = index_to_piece.get(idx);
+
+        if (piece_content == null) {
+            return new byte[]{};
+        } else {
+            return piece_content.array();
+        }
+
+    }
+
+    public int put_piece(int idx, byte[] piece_content) 
+    {
+        if (index_to_piece.get(idx) != null) {
+            return Constants.ALREADY_HAVE;
+        } else if (piece_content.length == 0) {
+            return Constants.EMPTY_PIECE_RCV;
+        } else {
+            index_to_piece.put(idx, ByteBuffer.wrap(piece_content));
+            if (index_to_piece.size() == num_pieces) {
+                // Write the file
+                LOGGER.debug(String.format("TRANSFER COMPLETE! Writing to path %s", path));
+                return Constants.FILE_COMPLETE;
+            } else {
+                return Constants.GOOD_PIECE;
+            }
+        }
+    }
+
     public int get_file_pieces(String path) throws IOException
     {
         Path p = Paths.get(path);
@@ -83,26 +110,17 @@ public class FileProcessor
         Path p = Paths.get(path);
         byte[] raw_image = Files.readAllBytes(p);
 
-        for (int taken_bytes = 0; taken_bytes < file_size; taken_bytes += piece_size) {
-            
-        }
-    }
-
-    public static void broadcast_file(DuplexServer listener, String path) throws IOException
-    {
-        // Split up file into a million pieces and spread it.
-        Path p = Paths.get(path);
-        byte[] raw_image = Files.readAllBytes(p);
-        String sending = String.format("<CTRL,IMG,%d>", raw_image.length);
-        // listener.broadcast_to_peers(sending);
-                
-        String encoded_image = DatatypeConverter.printBase64Binary(raw_image);
-        
-        
-        for (String substring : Splitter.fixedLength(80).split(encoded_image))
-        {
-            sending = String.format("<DATA,IMG,%s>", substring);
-            // listener.broadcast_to_peers(sending);
+        int idx = 0;
+        int chunk_size = piece_size;
+        for (int taken_bytes = 0; taken_bytes < file_size; taken_bytes += chunk_size) { 
+            // Rather not copy in empty bytes, delimit actual taking on final step
+            if (taken_bytes + chunk_size > file_size) {
+                chunk_size = file_size - taken_bytes;
+            }
+            byte[] arr = Arrays.copyOfRange(raw_image, taken_bytes, taken_bytes + chunk_size);
+            ByteBuffer piece = ByteBuffer.wrap(arr);
+            index_to_piece.put(idx, piece);
+            idx += 1;
         }
     }
 

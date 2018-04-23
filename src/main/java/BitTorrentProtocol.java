@@ -211,6 +211,17 @@ public class BitTorrentProtocol implements MessageListener
         return new NotInterested(myId);
     }
 
+    private int check_interested_index() {
+        ArrayList<Integer> idx_to_get = new ArrayList<>();
+        for (int i = 0; i < pieces; i++) {
+            boolean mine = have_field.get(i);
+            if (mine == false) idx_to_get.add(i);
+        }
+
+        Random r = new Random();
+        return idx_to_get.get(r.nextInt(idx_to_get.size()));
+    }
+
     private void update_peer_map(BitField bf) {
        int from_id = bf.getpeerId();
        
@@ -229,6 +240,35 @@ public class BitTorrentProtocol implements MessageListener
         }
     }
 
+    private boolean am_done() {
+        // Go through all peers and make sure they are finished
+        for (int peer_id : peer_to_have_field.keySet()) {
+            BitSet bs = peer_to_have_field.get(peer_id);
+            for (int i = 0; i < pieces; i++) {
+                boolean theirs = bs.get(i);
+                if (!theirs) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void exit() {
+        for (int peer_id : peer_to_have_field.keySet()) {
+            try {
+                listener.send_message(ByteBuffer.wrap(new byte[]{0}), peer_id);
+            } catch (IOException e) {
+                LOGGER.warn("Some friends left unexpectedly!");
+                LOGGER.error(e.getMessage());
+                System.out.println(e.getStackTrace());
+            }
+        }
+
+        unchoke_timer.stop();
+        optim_unchoke_timer.stop();
+    }
 
     void send_message(MessageType msg, int peer_id) {
         try {
@@ -238,6 +278,16 @@ public class BitTorrentProtocol implements MessageListener
             listener.send_message(msg.get_buffer(), peer_id);
         } catch (IOException e) {
             LOGGER.warn("Friend left unexpectedly!");
+            LOGGER.error(e.getMessage());
+            System.out.println(e.getStackTrace());
+        }
+    }
+
+    void broadcast(MessageType msg) {
+        try {
+            listener.broadcast_to_peers(msg.get_buffer());
+        } catch (IOException e) {
+            LOGGER.warn("Some friends left unexpectedly!");
             LOGGER.error(e.getMessage());
             System.out.println(e.getStackTrace());
         }
@@ -307,9 +357,10 @@ public class BitTorrentProtocol implements MessageListener
 		int from_id = nin.getpeerId();
         LOGGER.info("Peer [" + myId + "] received the 'not interested' message from [" + from_id + "].");
 
-        if (interested_peers.contains(Integer.valueOf(from_id))) {
-            interested_peers.remove(Integer.valueOf(from_id));
-        }
+        // Not sure about this
+        // if (interested_peers.contains(Integer.valueOf(from_id))) {
+        //     interested_peers.remove(Integer.valueOf(from_id));
+        // }
 	}
 
 	@Override
@@ -317,6 +368,31 @@ public class BitTorrentProtocol implements MessageListener
         // Update my map, send Have, and try to request another piece. 
         int from_id = p.getpeerId();
         LOGGER.info("Peer [" + myId + "] received piece from [" + from_id + "].");
+        int idx = p.getpieceIndex();
+
+        byte[] piece_content = p.getPieceContent();
+        int result = file_processor.put_piece(idx, piece_content);
+        if (result == Constants.ALREADY_HAVE) {
+            LOGGER.debug("Peer [" + myId + "] received piece from [" + from_id + "] but already had it.");
+        } else if (result == Constants.EMPTY_PIECE_RCV) {
+            LOGGER.debug("Peer [" + myId + "] received piece from [" + from_id + "] but it was empty.");        
+        } else {
+            // FILE_COMPLETE or GOOD_PIECE
+            have_field.set(idx);
+            Have h = new Have(myId, idx);
+            broadcast(h);
+        }
+
+        // Exit or check for another piece I'll want
+        if (result == Constants.FILE_COMPLETE) {
+            if (am_done()) {
+                // exit(); // Needs to be tested some more.
+            }
+        } else {
+            int req_idx = check_interested_index();
+            Request r = new Request(from_id, req_idx);
+            send_message(r, from_id);
+        }
 	}
 
 	@Override
@@ -326,6 +402,13 @@ public class BitTorrentProtocol implements MessageListener
         LOGGER.info("Peer [" + myId + "] received request from [" + from_id + "] for piece [" + idx + "].");
         
         // Retreive the piece corresponding to index, create msg and send. 
+        byte[] piece_content = file_processor.get_piece(idx);
+        if (piece_content.length == 0) {
+            LOGGER.warn("Peer [" + myId + "] requested from [" + from_id + "] non-existant piece [" + idx + "].");
+        } else {
+            Piece p = new Piece(from_id, idx, piece_content);
+            send_message(p, from_id);
+        }
 	}
 
     @Override
@@ -371,6 +454,10 @@ public class BitTorrentProtocol implements MessageListener
 
         if (interested_peers.contains(Integer.valueOf(peer_id))) {
             interested_peers.remove(Integer.valueOf(peer_id));
+        }
+
+        if (peer_to_have_field.get(peer_id) != null) {
+            peer_to_have_field.remove(peer_id);
         }
 	}
 

@@ -11,4 +11,8 @@ public final class Constants
     public static int REQUEST = 6;
     public static int PIECE = 7;
     public static int HANDSHAKE = 8;
+    public static int ALREADY_HAVE = 132;
+    public static int EMPTY_PIECE_RCV = 133;
+    public static int FILE_COMPLETE = 134;
+    public static int GOOD_PIECE = 135;
 }
