@@ -426,6 +426,11 @@ public class BitTorrentProtocol implements MessageListener
         LOGGER.info("Peer [" + myId + "] received request from [" + from_id + "] for piece [" + idx + "].");
         
         // Retreive the piece corresponding to index, create msg and send. 
+        if (choked_peers.contains(from_id)) {
+            // No
+            return;
+        }
+        
         byte[] piece_content = file_processor.get_piece(idx);
         if (piece_content.length == 0) {
             LOGGER.warn("Peer [" + myId + "] requested from [" + from_id + "] non-existant piece [" + idx + "].");

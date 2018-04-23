@@ -90,14 +90,14 @@ public class MessageHandler
                     return chunks;
                 }
 
-                LOGGER.debug(String.format("Message length is %d", message_length));    
+                // LOGGER.debug(String.format("Message length is %d", message_length));    
                 byte[] message = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + message_length);
                 // for (byte b : message) {
                 //     System.out.println(new Integer((int)b));
                 // }
                 int type = Arrays.copyOfRange(message, 0, 1)[0];      
                 chunked_bytes += message_length;
-                LOGGER.debug(String.format("Got type %s", MessageType.getTypeFromMessageValue((byte)type)));    
+                // LOGGER.debug(String.format("Got type %s", MessageType.getTypeFromMessageValue((byte)type)));    
                 
                 // Handle each type of message now and call broadcaster
                 if (type == Constants.BITFIELD) {
