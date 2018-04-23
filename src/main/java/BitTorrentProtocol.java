@@ -68,8 +68,7 @@ public class BitTorrentProtocol implements MessageListener
         unchokingInterval = ccfg.UnchokingInt; // p
         optimisticUnchokingInterval = ccfg.OptUnchokingInt; // m
 
-        String file_name = "image.jpg";
-        file_processor = new FileProcessor(file_name, ccfg, my_info);
+        file_processor = new FileProcessor(ccfg, my_info);
         pieces = file_processor.get_num_pieces();
         have_field = new BitSet(pieces);
         if (hasfile == 1) 

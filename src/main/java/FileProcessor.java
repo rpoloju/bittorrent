@@ -25,10 +25,11 @@ public class FileProcessor
     private String path;
     private int num_pieces;
     private int hasfile;
+    private String filename;
 
     private Logger LOGGER = LoggerFactory.getLogger(FileProcessor.class);
     
-    public FileProcessor(String file_name, SingletonCommon _ccfg, RemotePeerInfo _my_info) throws IOException
+    public FileProcessor(SingletonCommon _ccfg, RemotePeerInfo _my_info) throws IOException
     {
         ccfg = _ccfg;
         my_info = _my_info;
@@ -36,9 +37,10 @@ public class FileProcessor
         file_size = ccfg.FileSize;
         hasfile = my_info.getHasFile_or_not();
         pwd = System.getProperty("user.dir");
+        filename = ccfg.FileName;
 
-        path = pwd + "/" + file_name;
-        num_pieces = (int) Math.ceil((double)file_size / ccfg.PieceSize);
+        path = pwd + "/" + filename;
+        num_pieces = (int) Math.ceil((double)file_size / piece_size);
         LOGGER.debug("I am expecting [" + num_pieces + "] pieces to save in [" + path + "].");
         index_to_piece = new HashMap<>();
 
