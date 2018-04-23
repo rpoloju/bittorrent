@@ -48,6 +48,7 @@ public class BitTorrentProtocol implements MessageListener
     private ArrayList<Integer> preferred_peers; // b
     private int optimistic_unchoked_peer; // c
     private ArrayList<Integer> interested_peers; // = a + b + c
+    // Download rate: keep a counter of each peer when we get a piece from there. Reset on timer.
 
     private Logger LOGGER = LoggerFactory.getLogger(BitTorrentProtocol.class);
     
@@ -196,7 +197,7 @@ public class BitTorrentProtocol implements MessageListener
         int from_id = bf.getpeerId();                
         BitSet peer_set = bf.getBitSet();
 
-        for (int i = 0; i < bf.getLength(); i++) {
+        for (int i = 0; i < pieces; i++) {
             boolean mine = have_field.get(i);
             boolean theirs = peer_set.get(i);
 
@@ -294,7 +295,7 @@ public class BitTorrentProtocol implements MessageListener
 	@Override
 	public void onInterested(Interested in) {
         int from_id = in.getpeerId();
-        LOGGER.info("Peer [" + myId + "] received the the 'interested' message from [" + from_id + "].");
+        LOGGER.info("Peer [" + myId + "] received the 'interested' message from [" + from_id + "].");
 
         if (!interested_peers.contains(Integer.valueOf(from_id))) {
             interested_peers.add(Integer.valueOf(from_id));
@@ -304,7 +305,7 @@ public class BitTorrentProtocol implements MessageListener
 	@Override
 	public void onNotInterested(NotInterested nin) {
 		int from_id = nin.getpeerId();
-        LOGGER.info("Peer [" + myId + "] received the the 'not interested' message from [" + from_id + "].");
+        LOGGER.info("Peer [" + myId + "] received the 'not interested' message from [" + from_id + "].");
 
         if (interested_peers.contains(Integer.valueOf(from_id))) {
             interested_peers.remove(Integer.valueOf(from_id));
@@ -313,6 +314,7 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onPiece(Piece p) {
+        // Update my map, send Have, and try to request another piece. 
         int from_id = p.getpeerId();
         LOGGER.info("Peer [" + myId + "] received piece from [" + from_id + "].");
 	}
@@ -320,7 +322,8 @@ public class BitTorrentProtocol implements MessageListener
 	@Override
 	public void onRequest(Request r) {
         int from_id = r.getpeerId();
-        LOGGER.info("Peer [" + myId + "] received request from [" + from_id + "].");
+        int idx = r.getRequestIndex();
+        LOGGER.info("Peer [" + myId + "] received request from [" + from_id + "] for piece [" + idx + "].");
 		
 	}
 
@@ -328,7 +331,7 @@ public class BitTorrentProtocol implements MessageListener
 	public void onChoke(Choke c) {
         int from_id = c.getpeerId();
         LOGGER.info("Peer [" + myId + "] is choked by [" + from_id + "].");
-		
+		// This could be kept track of, but not really necessary. Peer can just wait until unchoke event to reinitiate transfer. 
     }
     
 	@Override
@@ -336,6 +339,24 @@ public class BitTorrentProtocol implements MessageListener
         // Send a request message. A reply is not guaranteed.
         int from_id = unc.getpeerId();
         LOGGER.info("Peer [" + myId + "] is unchoked by [" + from_id + "].");
+
+        BitSet peer_set = peer_to_have_field.get(from_id);
+        ArrayList<Integer> possible_idx = new ArrayList<>();
+
+        for (int i = 0; i < pieces; i++) {
+            boolean mine = have_field.get(i);
+            boolean theirs = peer_set.get(i);
+
+            if (mine == false && theirs == true) {
+                possible_idx.add(i);
+            }
+        }
+
+        Random r = new Random();
+        int idx = possible_idx.get(r.nextInt(possible_idx.size()));
+
+        Request req = new Request(from_id, idx);
+        send_message(req, from_id);
 	}
 
 	@Override

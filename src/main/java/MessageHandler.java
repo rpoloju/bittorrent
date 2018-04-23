@@ -21,6 +21,7 @@ import messages.Have;
 import messages.Interested;
 import messages.MessageType;
 import messages.NotInterested;
+import messages.Request;
 import messages.UnChoke;
 
 // Class to turn byte blobs into something useful
@@ -117,9 +118,13 @@ public class MessageHandler
                 } else if (type == Constants.UNCHOKE) {
                     UnChoke unc = new UnChoke(given_id);
                     chunks.add(unc);
+                } else if (type == Constants.REQUEST) {
+                    byte[] payload = Arrays.copyOfRange(message, 1, message_length);                    
+                    int idx = ByteBuffer.wrap(payload).getInt();                    
+                    Request req = new Request(given_id, idx);
+                    chunks.add(req);
                 }
             }
-
         }
 
         return chunks;
@@ -163,6 +168,8 @@ public class MessageHandler
                 mListener.onChoke((Choke) message);
             } else if (message instanceof UnChoke) {
                 mListener.onUnChoke((UnChoke) message);
+            } else if (message instanceof Request) {
+                mListener.onRequest((Request) message);
             }
         }
 
