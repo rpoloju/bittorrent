@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Random;
 
 import javax.swing.Timer;
 
@@ -166,6 +167,25 @@ public class BitTorrentProtocol implements MessageListener
     }
 
     private void recalculate_optim_unchoke() {
+        if (choked_peers.size() == 0) 
+        {
+            return;
+        }
+
+        Random r = new Random();        
+        int rand_idx = r.nextInt(choked_peers.size());
+        int new_optim_peer = choked_peers.get(rand_idx);
+
+        if (optimistic_unchoked_peer == new_optim_peer) {
+
+        } else {
+            if (!preferred_peers.contains(optimistic_unchoked_peer)) // Only choke if not in preferred (prefferd + optim edge case)
+                send_message(new Choke(optimistic_unchoked_peer), optimistic_unchoked_peer);
+
+            send_message(new UnChoke(new_optim_peer), new_optim_peer); 
+        }
+
+        optimistic_unchoked_peer = new_optim_peer;
         LOGGER.info("Peer ["+ myId + "] has the optimistically unchoked neighbor [" + optimistic_unchoked_peer + "]");
     }
 
