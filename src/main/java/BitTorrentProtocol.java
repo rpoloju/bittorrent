@@ -234,6 +234,10 @@ public class BitTorrentProtocol implements MessageListener
         if (map_get != null) {
             map_get.set(h.getpieceIndex());
             peer_to_have_field.put(from_id, map_get);
+            if (peer_done(map_get)) {
+                LOGGER.debug("I think peer [" + from_id + "] is finished. Remove from interested pool.");
+                interested_peers.remove(Integer.valueOf(from_id));
+            }
         } else {
             LOGGER.debug("Got a HAVE for an unitialized Peer, ID=" + from_id);
         }
@@ -248,6 +252,17 @@ public class BitTorrentProtocol implements MessageListener
                 if (!theirs) {
                     return false;
                 }
+            }
+        }
+
+        return true;
+    }
+
+    private boolean peer_done(BitSet bs) {
+        for (int i = 0; i < pieces; i++) {
+            boolean theirs = bs.get(i);
+            if (!theirs) {
+                return false;
             }
         }
 
@@ -443,6 +458,11 @@ public class BitTorrentProtocol implements MessageListener
             if (mine == false && theirs == true) {
                 possible_idx.add(i);
             }
+        }
+
+        if (possible_idx.size() == 0) {
+            // Nothing that I would want, leave. 
+            return;
         }
 
         Random r = new Random();
