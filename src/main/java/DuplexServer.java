@@ -17,6 +17,10 @@ import messages.MessageType;
 
 import messages.HandShake;
 
+/**
+ * @author Washington Garcia
+ * https://github.com/w-garcia
+ */
 
 public class DuplexServer extends Thread implements Runnable
 {   
@@ -289,7 +293,7 @@ public class DuplexServer extends Thread implements Runnable
                 ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize + 5);
                 buffer.clear();
                 channelClient.read(buffer);
-                if (buffer.get(0) == 0) {
+                if (buffer.get(0) == 0) { // Maybe change this so dont need hack
                     LOGGER.debug("Nothing to read. Channel closed.");
                     channelClient.close();
                     parent.clean_socket(hostname, port);

@@ -21,10 +21,14 @@ import messages.Have;
 import messages.Interested;
 import messages.MessageType;
 import messages.NotInterested;
+import messages.Piece;
 import messages.Request;
 import messages.UnChoke;
 
-// Class to turn byte blobs into something useful
+/** Class to turn byte blobs into something useful
+ * @author Washington Garcia
+ * https://github.com/w-garcia
+ */
 public class MessageHandler 
 {
     ByteArrayOutputStream temp_buffer = new ByteArrayOutputStream();
@@ -123,6 +127,12 @@ public class MessageHandler
                     int idx = ByteBuffer.wrap(payload).getInt();                    
                     Request req = new Request(given_id, idx);
                     chunks.add(req);
+                } else if (type == Constants.PIECE) {
+                    byte[] payload = Arrays.copyOfRange(message, 1, message_length);                    
+                    byte[] piece_index = Arrays.copyOfRange(payload, 0, 4);
+                    byte[] piece_data = Arrays.copyOfRange(payload, 4, payload.length);
+                    Piece p = new Piece(given_id, piece_index, piece_data);
+                    chunks.add(p);
                 }
             }
         }

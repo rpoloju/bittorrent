@@ -11,6 +11,18 @@ public class Piece extends MessageType {
 		super.message_type = "PIECE";
 	}
 
+    public Piece(int peer_id, int pieceIndex, byte[] pieceContent) {
+        super(peer_id);
+        super.message_type = "PIECE";
+
+        super.message_payload = new byte[pieceContent.length + 4];
+        byte[] pieceIndex_asArray = ByteBuffer.allocate(4).putInt(pieceIndex).array();
+		System.arraycopy(pieceIndex_asArray, 0, super.message_payload, 0, pieceIndex_asArray.length);
+		System.arraycopy(pieceContent, 0, super.message_payload, pieceIndex_asArray.length, pieceContent.length);
+
+		super.message_length += super.message_payload.length;
+    }
+
 	public Piece(int peer_id, byte[] pieceIndex, byte[] pieceContent) {
         super(peer_id);
 		super.message_type = "PIECE";

@@ -49,7 +49,8 @@ public class BitTorrentProtocol implements MessageListener
     private int optimistic_unchoked_peer; // c
     private ArrayList<Integer> interested_peers; // = a + b + c
     // Download rate: keep a counter of each peer when we get a piece from there. Reset on timer.
-
+    // Pieces are constant size so count of pieces received during each interval is accurate. 
+    private FileProcessor file_processor;
     private Logger LOGGER = LoggerFactory.getLogger(BitTorrentProtocol.class);
     
     private Timer unchoke_timer;
@@ -67,10 +68,9 @@ public class BitTorrentProtocol implements MessageListener
         unchokingInterval = ccfg.UnchokingInt; // p
         optimisticUnchokingInterval = ccfg.OptUnchokingInt; // m
 
-        // we have 306 pieces (FileSize // PieceSize)
-        String pwd = System.getProperty("user.dir");
-        pieces  = MessagePreparer.get_num_pieces(pwd + "/image.jpg");
-
+        String file_name = "image.jpg";
+        file_processor = new FileProcessor(file_name, ccfg, my_info);
+        pieces = file_processor.get_num_pieces();
         have_field = new BitSet(pieces);
         if (hasfile == 1) 
         { 
@@ -324,7 +324,8 @@ public class BitTorrentProtocol implements MessageListener
         int from_id = r.getpeerId();
         int idx = r.getRequestIndex();
         LOGGER.info("Peer [" + myId + "] received request from [" + from_id + "] for piece [" + idx + "].");
-		
+        
+        // Retreive the piece corresponding to index, create msg and send. 
 	}
 
     @Override

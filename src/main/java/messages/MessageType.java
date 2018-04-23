@@ -97,6 +97,7 @@ public class MessageType {
         // bb.put(this.message_payload); // next N
         byte[] message_length = ByteBuffer.allocate(4).putInt(1 + this.message_payload.length).array();
         message_length[0] = (byte) 127;
+        // Maybe flip the bytes around instead. Or add/subtract bytes rather than ints
         byte[] type = ByteBuffer.allocate(1).put(getCodeFromMessageType(this.message_type)).array();
 
         byte[] message = ByteBuffer.allocate(message_length.length + type.length + this.message_payload.length).array();
