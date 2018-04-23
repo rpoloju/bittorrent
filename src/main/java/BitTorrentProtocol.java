@@ -300,8 +300,12 @@ public class BitTorrentProtocol implements MessageListener
         // System.out.println("We have handshake");
         
         int from_id = hs.getpeerId();
+        
+        // Add peer's bitfield assuming it is empty, since empty peers won't send me anything.
+        BitField theirs = new BitField(from_id, new BitSet(pieces));
+        update_peer_map(theirs);
 
-        // create bitfield & send
+        // create my bitfield & send
         BitField bf = new BitField(from_id, have_field);
 
         if (!bf.hasNothing())
