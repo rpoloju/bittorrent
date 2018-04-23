@@ -243,7 +243,7 @@ public class DuplexServer extends Thread implements Runnable
         int port;
         byte[] temp_buffer;
         SingletonCommon common_cfg;
-        ArrayList<ByteBuffer> write_queue;
+        // ArrayList<ByteBuffer> write_queue;
 
         public ClientHandler(SocketChannel sc, DuplexServer dp) throws IOException {
             parent = dp;    
@@ -254,7 +254,7 @@ public class DuplexServer extends Thread implements Runnable
             channel.register(my_selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
             hostname = channel.socket().getInetAddress().getHostName();
             port = channel.socket().getPort();
-            write_queue = new ArrayList<>();
+            // write_queue = new ArrayList<>();
         }
 
         @Override
@@ -299,13 +299,13 @@ public class DuplexServer extends Thread implements Runnable
                 parent.process_message(hostname, port, buffer);
 
             } else if (key.isWritable()) {
-                SocketChannel channelClient = (SocketChannel) key.channel();
-                for (ByteBuffer bb : write_queue){
-                    LOGGER.debug(String.format("Sending %d bytes", bb.array().length));
+                // SocketChannel channelClient = (SocketChannel) key.channel();
+                // for (ByteBuffer bb : write_queue){
+                    // LOGGER.debug(String.format("Sending %d bytes", bb.array().length));
                     
-                    channelClient.write(bb);
-                }
-                write_queue.clear();
+                    // channelClient.write(bb);
+                // }
+                // write_queue.clear();
             }
         }
     
@@ -314,8 +314,8 @@ public class DuplexServer extends Thread implements Runnable
         // }
 
         public void write(ByteBuffer buffer) throws IOException {
-            // channel.write(buffer);
-            write_queue.add(buffer);
+            channel.write(buffer);
+            // write_queue.add(buffer);
         }
     }
 }

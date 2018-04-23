@@ -15,11 +15,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import messages.BitField;
+import messages.Choke;
 import messages.HandShake;
 import messages.Have;
 import messages.Interested;
 import messages.MessageType;
 import messages.NotInterested;
+import messages.UnChoke;
 
 // Class to turn byte blobs into something useful
 public class MessageHandler 
@@ -109,6 +111,12 @@ public class MessageHandler
                     int idx = ByteBuffer.wrap(payload).getInt();
                     Have h = new Have(given_id, idx);
                     chunks.add(h);                    
+                } else if (type == Constants.CHOKE) {
+                    Choke c = new Choke(given_id);
+                    chunks.add(c);
+                } else if (type == Constants.UNCHOKE) {
+                    UnChoke unc = new UnChoke(given_id);
+                    chunks.add(unc);
                 }
             }
 
@@ -151,6 +159,10 @@ public class MessageHandler
                 mListener.onInterested((Interested) message);
             } else if (message instanceof Have) {
                 mListener.onHave((Have) message);
+            } else if (message instanceof Choke) {
+                mListener.onChoke((Choke) message);
+            } else if (message instanceof UnChoke) {
+                mListener.onUnChoke((UnChoke) message);
             }
         }
 

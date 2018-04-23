@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 
 import javax.swing.Timer;
@@ -23,7 +24,8 @@ import messages.Request;
 import messages.UnChoke;
 
 /**
- * @author Washington Garcia
+ * @author Washington Garcia 
+ * https://github.com/w-garcia
  */
 
 public class BitTorrentProtocol implements MessageListener
@@ -126,7 +128,41 @@ public class BitTorrentProtocol implements MessageListener
     /////////// Timer data handlers
 
     private void recalculate_preferred_peers() {
-        LOGGER.info("Peer ["+ myId + "] has the preffered neighbors []");
+        int k = numberOfPreferredNeighbors;
+        ArrayList<Integer> temp = new ArrayList<>(interested_peers);
+        ArrayList<Integer> old_choke = choked_peers;
+        ArrayList<Integer> old_preferrs = preferred_peers;
+        ArrayList<Integer> new_choke;
+        Collections.shuffle(temp);
+        
+        // Create new choked_peers (k to n)
+
+        if (interested_peers.size() >= k) {
+            preferred_peers = new ArrayList<>(temp.subList(0, k));
+            new_choke = new ArrayList<>(temp.subList(k, temp.size()));
+            
+        } else {
+            preferred_peers = temp;
+            new_choke = new ArrayList<>();
+        }
+
+        LOGGER.info("Peer ["+ myId + "] has the preffered neighbors " + preferred_peers.toString() + ".");
+
+        for (int peer_id : interested_peers) {
+            if (peer_id == optimistic_unchoked_peer) {
+                continue;
+            }
+            if (!new_choke.contains(peer_id) && old_choke.contains(peer_id)) { // State change choked->unchoked
+                send_message(new UnChoke(peer_id), peer_id);
+            } else if (new_choke.contains(peer_id) && !old_choke.contains(peer_id)) { // State change unchoked/idle->choked
+                send_message(new Choke(peer_id), peer_id);
+            } else if (preferred_peers.contains(peer_id) && old_preferrs.contains(peer_id)) {
+                // Already unchoked
+            } else if (!new_choke.contains(peer_id) && !old_choke.contains(peer_id)) { // either new or already unchoked
+                send_message(new UnChoke(peer_id), peer_id);
+            } 
+        }
+        choked_peers = new_choke;
     }
 
     private void recalculate_optim_unchoke() {
@@ -166,8 +202,23 @@ public class BitTorrentProtocol implements MessageListener
         BitSet map_get = peer_to_have_field.get(from_id);
         if (map_get != null) {
             map_get.set(h.getpieceIndex());
+            peer_to_have_field.put(from_id, map_get);
         } else {
             LOGGER.debug("Got a HAVE for an unitialized Peer, ID=" + from_id);
+        }
+    }
+
+
+    void send_message(MessageType msg, int peer_id) {
+        try {
+            // byte[] bss = new byte[] {0, 0, 0, 1};
+            // System.out.println("The length is " + ByteBuffer.wrap(bss).getInt());            
+            // listener.send_message(ByteBuffer.wrap(bss), from_id);            
+            listener.send_message(msg.get_buffer(), peer_id);
+        } catch (IOException e) {
+            LOGGER.warn("Friend left unexpectedly!");
+            LOGGER.error(e.getMessage());
+            System.out.println(e.getStackTrace());
         }
     }
 
@@ -186,15 +237,7 @@ public class BitTorrentProtocol implements MessageListener
         {
             LOGGER.debug("Sending my bitfield to Peer " + from_id);
             
-            try {
-                // byte[] bss = new byte[] {0, 0, 0, 1};
-                // System.out.println("The length is " + ByteBuffer.wrap(bss).getInt());            
-                // listener.send_message(ByteBuffer.wrap(bss), from_id);            
-                listener.send_message(bf.get_buffer(), from_id);
-            } catch (IOException e) {
-                LOGGER.error(e.getMessage());
-                System.out.println(e.getStackTrace());
-            }
+            send_message(bf, from_id);
         }
         else 
         {
@@ -211,12 +254,7 @@ public class BitTorrentProtocol implements MessageListener
         update_peer_map(bf);
         MessageType response = check_interest(bf);
 
-        try {       
-            listener.send_message(response.get_buffer(), from_id);
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage());
-            System.out.println(e.getStackTrace());
-        }
+        send_message(response, from_id);
 	}
 
 	@Override
@@ -230,12 +268,7 @@ public class BitTorrentProtocol implements MessageListener
         bs.set(idx);
         MessageType response = check_interest(new BitField(from_id, bs));
 
-        try {       
-            listener.send_message(response.get_buffer(), from_id);
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage());
-            System.out.println(e.getStackTrace());
-        }
+        send_message(response, from_id);
 	}
 
 	@Override
@@ -292,7 +325,11 @@ public class BitTorrentProtocol implements MessageListener
 
 	@Override
 	public void onPeerLeft(int peer_id) {
-		LOGGER.debug("A friend left with ID=" + peer_id);
+        LOGGER.debug("A friend left with ID=" + peer_id);
+
+        if (interested_peers.contains(Integer.valueOf(peer_id))) {
+            interested_peers.remove(Integer.valueOf(peer_id));
+        }
 	}
 
 }
