@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -74,7 +75,7 @@ public class FileProcessor
 
     }
 
-    public int put_piece(int idx, byte[] piece_content) 
+    public int put_piece(int idx, byte[] piece_content) throws IOException
     {
         if (index_to_piece.get(idx) != null) {
             return Constants.ALREADY_HAVE;
@@ -85,6 +86,9 @@ public class FileProcessor
             if (index_to_piece.size() == num_pieces) {
                 // Write the file
                 LOGGER.debug(String.format("TRANSFER COMPLETE! Writing to path %s", path));
+                byte[] all_pieces = cram_pieces();
+                Path p = Paths.get(path);;
+                Files.write(p, all_pieces);
                 return Constants.FILE_COMPLETE;
             } else {
                 return Constants.GOOD_PIECE;
@@ -105,6 +109,21 @@ public class FileProcessor
     public int get_num_pieces() 
     {
         return num_pieces;
+    }
+
+    // Cram together all pieces when we finish getting the file.
+    private byte[] cram_pieces() 
+    {
+        byte[] everything = ByteBuffer.allocate(file_size).array();
+
+        int bytes_written = 0;
+        for (int idx : index_to_piece.keySet()) {
+            byte[] chunk = index_to_piece.get(idx).array();
+            System.arraycopy(chunk, 0, everything, bytes_written, chunk.length);
+            bytes_written += chunk.length;
+        }
+
+        return everything;
     }
 
     private void init_pieces(String path) throws IOException 

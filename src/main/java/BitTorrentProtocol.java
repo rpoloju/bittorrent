@@ -374,7 +374,13 @@ public class BitTorrentProtocol implements MessageListener
         int idx = p.getpieceIndex();
 
         byte[] piece_content = p.getPieceContent();
-        int result = file_processor.put_piece(idx, piece_content);
+        int result = -1;
+        try {
+            result = file_processor.put_piece(idx, piece_content);
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage());
+        }
+
         if (result == Constants.ALREADY_HAVE) {
             LOGGER.debug("Peer [" + myId + "] received piece from [" + from_id + "] but already had it.");
         } else if (result == Constants.EMPTY_PIECE_RCV) {
