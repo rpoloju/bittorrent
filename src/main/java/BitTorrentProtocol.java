@@ -43,6 +43,7 @@ public class BitTorrentProtocol implements MessageListener
     private int numberOfPreferredNeighbors;
     private int unchokingInterval;
     private int optimisticUnchokingInterval;
+    private boolean mine_done = false;
 
     private ArrayList<Integer> choked_peers; // a 
     private ArrayList<Integer> preferred_peers; // b
@@ -73,6 +74,7 @@ public class BitTorrentProtocol implements MessageListener
         have_field = new BitSet(pieces);
         if (hasfile == 1) 
         { 
+            // mine_done = true;
             have_field.set(0, pieces);
         }
 
@@ -283,9 +285,11 @@ public class BitTorrentProtocol implements MessageListener
             }
         }
 
-        unchoke_timer.stop();
-        optim_unchoke_timer.stop();
-        // System.exit(0);
+        if (hasfile == 0) {
+            unchoke_timer.stop();
+            optim_unchoke_timer.stop();
+            System.exit(0);
+        }
     }
 
     void send_message(MessageType msg, int peer_id) {
@@ -371,6 +375,10 @@ public class BitTorrentProtocol implements MessageListener
     
             send_message(response, from_id);
         }
+
+        if (mine_done && am_done()) {
+            exit();
+        }
 	}
 
 	@Override
@@ -422,6 +430,7 @@ public class BitTorrentProtocol implements MessageListener
 
         // Exit or check for another piece I'll want
         if (result == Constants.FILE_COMPLETE) {
+            mine_done = true;
             if (am_done()) {
                 exit(); // Needs to be tested some more.
             }
@@ -504,6 +513,10 @@ public class BitTorrentProtocol implements MessageListener
 
         if (interested_peers.contains(Integer.valueOf(peer_id))) {
             interested_peers.remove(Integer.valueOf(peer_id));
+        }
+
+        if (preferred_peers.contains(Integer.valueOf(peer_id))) {
+            preferred_peers.remove(Integer.valueOf(peer_id));
         }
 
         if (peer_to_have_field.get(peer_id) != null) {

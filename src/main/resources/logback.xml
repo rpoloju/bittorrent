@@ -16,7 +16,7 @@
 		</layout>
 	</appender>
 
-    <root level="TRACE">
+    <root level="INFO">
         <appender-ref ref="fileAppender" />
         <appender-ref ref="STDOUT" />
     </root>

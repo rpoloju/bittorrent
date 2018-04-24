@@ -78,17 +78,17 @@ public class MessageHandler
             }
             else
             {
-                // Got another type
-                header[0] = (byte) 0; // Undo hack
+                // // Got another type
+                // header[0] = (byte) 0; // Undo hack
                 int message_length = ByteBuffer.wrap(header).getInt();
-                if (message_length == 0) 
-                    return chunks;
+                // if (message_length == 0) 
+                //     return chunks;
                     
-                if (message_length > buffer.array().length || message_length < 0)
-                {
-                    LOGGER.error("Malformed message received: message_length=" + message_length);
-                    return chunks;
-                }
+                // if (message_length > buffer.array().length || message_length < 0)
+                // {
+                //     LOGGER.error("Malformed message received: message_length=" + message_length);
+                //     return chunks;
+                // }
 
                 // LOGGER.debug(String.format("Message length is %d", message_length));    
                 byte[] message = Arrays.copyOfRange(buffer.array(), chunked_bytes, chunked_bytes + message_length);
