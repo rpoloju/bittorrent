@@ -42,13 +42,14 @@ public class FileProcessor
         pwd = System.getProperty("user.dir");
         filename = ccfg.FileName;
 
-        String split_directory_path = pwd + "/peer_" + my_info.peerId + "/";
+        String split_directory_path = Paths.get(pwd, "peer_" + my_info.peerId).toString();
+
         File folder = new File(split_directory_path);
         if (!folder.exists()) {
             folder.mkdir();
         }
 
-        path = split_directory_path + filename;
+        path = Paths.get(split_directory_path, filename).toString();
         num_pieces = (int) Math.ceil((double)file_size / piece_size);
         LOGGER.debug("I am expecting [" + num_pieces + "] pieces to save in [" + path + "].");
         index_to_piece = new HashMap<>();
@@ -66,7 +67,7 @@ public class FileProcessor
 
             } else {
                 // LOGGER.warn("hasfile = 1 but no file found! path=" + path);
-                String from_root_path = pwd + "/" + filename;
+                String from_root_path = Paths.get(pwd, filename).toString();
                 File ffroot = new File(from_root_path);
                 if (ffroot.exists()) {
                     copy_file(from_root_path, path);
