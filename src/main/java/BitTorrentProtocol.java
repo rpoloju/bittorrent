@@ -453,7 +453,6 @@ public class BitTorrentProtocol implements MessageListener
         // Update my map, send Have, and try to request another piece. 
         int from_id = p.getpeerId();
         int idx = p.getpieceIndex();
-        LOGGER.info("Peer [" + myId + "] has downloaded the piece [" + idx + "] from [" + from_id + "].");
 
         byte[] piece_content = p.getPieceContent();
         int result = -1;
@@ -469,6 +468,8 @@ public class BitTorrentProtocol implements MessageListener
             LOGGER.debug("Peer [" + myId + "] received piece from [" + from_id + "] but it was empty.");        
         } else {
             // FILE_COMPLETE or GOOD_PIECE
+            LOGGER.info("Peer [" + myId + "] has downloaded the piece [" + idx + "] from [" + from_id + "]. Now the number of pieces it has is [" + file_processor.get_progress() + "].");
+            
             update_entity(from_id);
             have_field.set(idx);
             Have h = new Have(myId, idx);

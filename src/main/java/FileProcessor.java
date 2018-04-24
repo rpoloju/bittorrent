@@ -140,6 +140,11 @@ public class FileProcessor
         return num_pieces;
     }
 
+    public int get_progress() 
+    {
+        return index_to_piece.size();
+    }
+
     // Cram together all pieces when we finish getting the file.
     private byte[] cram_pieces() 
     {
