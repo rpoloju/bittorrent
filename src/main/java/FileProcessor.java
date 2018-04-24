@@ -113,7 +113,7 @@ public class FileProcessor
             index_to_piece.put(idx, ByteBuffer.wrap(piece_content));
             if (index_to_piece.size() == num_pieces) {
                 // Write the file
-                LOGGER.debug(String.format("TRANSFER COMPLETE! Writing to path %s", path));
+                LOGGER.info(String.format("TRANSFER COMPLETE! Writing to path %s", path));
                 byte[] all_pieces = cram_pieces();
                 Path p = Paths.get(path);
                 Files.write(p, all_pieces);
