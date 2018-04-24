@@ -174,7 +174,7 @@ public class BitTorrentProtocol implements MessageListener
             }
         }
 
-        LOGGER.info("Peer ["+ myId + "] has the preffered neighbors " + preferred_peers.toString() + ".");
+        LOGGER.info("Peer ["+ myId + "] has the preferred neighbors " + preferred_peers.toString() + ".");
 
         for (int peer_id : interested_peers) {
             if (peer_id == optimistic_unchoked_peer) {
@@ -196,6 +196,7 @@ public class BitTorrentProtocol implements MessageListener
     private void recalculate_optim_unchoke() {
         if (choked_peers.size() == 0) 
         {
+            LOGGER.info("Peer ["+ myId + "] has the optimistically unchoked neighbor []");            
             return;
         }
 
