@@ -217,6 +217,10 @@ public class BitTorrentProtocol implements MessageListener
             if (mine == false) idx_to_get.add(i);
         }
 
+        if (idx_to_get.size() == 0) {
+            return -1;
+        }
+
         Random r = new Random();
         return idx_to_get.get(r.nextInt(idx_to_get.size()));
     }
@@ -299,13 +303,17 @@ public class BitTorrentProtocol implements MessageListener
     }
 
     void broadcast(MessageType msg) {
-        try {
-            listener.broadcast_to_peers(msg.get_buffer());
-        } catch (IOException e) {
-            LOGGER.warn("Some friends left unexpectedly!");
-            LOGGER.error(e.getMessage());
-            System.out.println(e.getStackTrace());
+        for (int to_id : peer_to_have_field.keySet())
+        {
+            try {
+                listener.send_message(msg.get_buffer(), to_id);
+            } catch (IOException e) {
+                LOGGER.warn("Some friends left unexpectedly!");
+                LOGGER.error(e.getMessage());
+                System.out.println(e.getStackTrace());
+            }
         }
+        
     }
 
     ////////////// BTP Event handlers
@@ -354,11 +362,14 @@ public class BitTorrentProtocol implements MessageListener
         LOGGER.info("Peer [" + myId + "] received the 'have' message from [" + from_id + "] for the piece [" + idx + "].");
         update_peer_map(h);
 
-        BitSet bs = new BitSet(pieces);
-        bs.set(idx);
-        MessageType response = check_interest(new BitField(from_id, bs));
-
-        send_message(response, from_id);
+        // BitSet bs = new BitSet(pieces);
+        BitSet bs = peer_to_have_field.get(from_id);
+        if (bs != null) {
+            bs.set(idx);
+            MessageType response = check_interest(new BitField(from_id, bs));
+    
+            send_message(response, from_id);
+        }
 	}
 
 	@Override
@@ -415,6 +426,9 @@ public class BitTorrentProtocol implements MessageListener
             }
         } else {
             int req_idx = check_interested_index();
+            if (req_idx == -1) {
+                return;
+            }
             Request r = new Request(from_id, req_idx);
             send_message(r, from_id);
         }
