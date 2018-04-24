@@ -5,8 +5,12 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.Timer;
 
@@ -51,6 +55,8 @@ public class BitTorrentProtocol implements MessageListener
     private ArrayList<Integer> interested_peers; // = a + b + c
     // Download rate: keep a counter of each peer when we get a piece from there. Reset on timer.
     // Pieces are constant size so count of pieces received during each interval is accurate. 
+    private ConcurrentSkipListSet<RateEntity> peer_rate_entites;
+
     private FileProcessor file_processor;
     private Logger LOGGER = LoggerFactory.getLogger(BitTorrentProtocol.class);
     
@@ -83,6 +89,7 @@ public class BitTorrentProtocol implements MessageListener
         optimistic_unchoked_peer = -1;
         preferred_peers = new ArrayList<>();
         choked_peers = new ArrayList<>();
+        peer_rate_entites = new ConcurrentSkipListSet<>();
 
         LOGGER.debug("Starting P2P Protocol for Peer" + myId + ".");
         
@@ -136,17 +143,35 @@ public class BitTorrentProtocol implements MessageListener
         ArrayList<Integer> old_choke = choked_peers;
         ArrayList<Integer> old_preferrs = preferred_peers;
         ArrayList<Integer> new_choke;
-        Collections.shuffle(temp);
         
         // Create new choked_peers (k to n)
-
-        if (interested_peers.size() >= k) {
-            preferred_peers = new ArrayList<>(temp.subList(0, k));
-            new_choke = new ArrayList<>(temp.subList(k, temp.size()));
-            
-        } else {
+        if (interested_peers.size() < k) {
+            // Not enough peers, select all
             preferred_peers = temp;
             new_choke = new ArrayList<>();
+        } else {
+            if (hasfile == 1) {
+                // Shuffle randomly
+                Collections.shuffle(temp);
+                preferred_peers = new ArrayList<>(temp.subList(0, k));
+                new_choke = new ArrayList<>(temp.subList(k, temp.size()));
+            } else {
+                // Choose according to rate. 
+                // SkipListSet is already sorted by the rates.                 
+                preferred_peers = new ArrayList<>();
+                new_choke = new ArrayList<>();
+                int i = 0;
+                for (RateEntity re : peer_rate_entites) {
+                    if (i < k) {
+                        preferred_peers.add(re.get_id());
+                        i += 1;
+                    } else {
+                        new_choke.add(re.get_id());
+                    }
+                }
+
+                reset_entities();
+            }
         }
 
         LOGGER.info("Peer ["+ myId + "] has the preffered neighbors " + preferred_peers.toString() + ".");
@@ -192,6 +217,21 @@ public class BitTorrentProtocol implements MessageListener
     }
 
     /////////// Meta data handlers
+
+    private void update_entity(int peer_id) {
+        for (RateEntity re : peer_rate_entites) {
+            if (re.get_id() == peer_id) {
+                re.increment();
+                return;
+            }
+        }
+    }
+
+    private void reset_entities() {
+        for (RateEntity re : peer_rate_entites) {
+            re.reset_rate();
+        }
+    }
 
     private MessageType check_interest(BitField bf) {
         // Determine if send interested or not interested
@@ -333,6 +373,11 @@ public class BitTorrentProtocol implements MessageListener
             update_peer_map(theirs);
         }
 
+        RateEntity re = new RateEntity(from_id);
+        if (!peer_rate_entites.contains(re)) {
+            peer_rate_entites.add(re);
+        }
+
         // create my bitfield & send
         BitField bf = new BitField(from_id, have_field);
 
@@ -423,6 +468,7 @@ public class BitTorrentProtocol implements MessageListener
             LOGGER.debug("Peer [" + myId + "] received piece from [" + from_id + "] but it was empty.");        
         } else {
             // FILE_COMPLETE or GOOD_PIECE
+            update_entity(from_id);
             have_field.set(idx);
             Have h = new Have(myId, idx);
             broadcast(h);
