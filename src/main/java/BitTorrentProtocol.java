@@ -452,8 +452,8 @@ public class BitTorrentProtocol implements MessageListener
 	public void onPiece(Piece p) {
         // Update my map, send Have, and try to request another piece. 
         int from_id = p.getpeerId();
-        LOGGER.info("Peer [" + myId + "] received piece from [" + from_id + "].");
         int idx = p.getpieceIndex();
+        LOGGER.info("Peer [" + myId + "] has downloaded the piece [" + idx + "] from [" + from_id + "].");
 
         byte[] piece_content = p.getPieceContent();
         int result = -1;
