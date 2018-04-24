@@ -282,6 +282,7 @@ public class BitTorrentProtocol implements MessageListener
 
         unchoke_timer.stop();
         optim_unchoke_timer.stop();
+        // System.exit(0);
     }
 
     void send_message(MessageType msg, int peer_id) {
@@ -410,7 +411,7 @@ public class BitTorrentProtocol implements MessageListener
         // Exit or check for another piece I'll want
         if (result == Constants.FILE_COMPLETE) {
             if (am_done()) {
-                // exit(); // Needs to be tested some more.
+                exit(); // Needs to be tested some more.
             }
         } else {
             int req_idx = check_interested_index();
@@ -430,7 +431,7 @@ public class BitTorrentProtocol implements MessageListener
             // No
             return;
         }
-        
+
         byte[] piece_content = file_processor.get_piece(idx);
         if (piece_content.length == 0) {
             LOGGER.warn("Peer [" + myId + "] requested from [" + from_id + "] non-existant piece [" + idx + "].");

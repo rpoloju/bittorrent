@@ -1,10 +1,12 @@
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -40,7 +42,13 @@ public class FileProcessor
         pwd = System.getProperty("user.dir");
         filename = ccfg.FileName;
 
-        path = pwd + "/" + filename;
+        String split_directory_path = pwd + "/peer_" + my_info.peerId + "/";
+        File folder = new File(split_directory_path);
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+
+        path = split_directory_path + filename;
         num_pieces = (int) Math.ceil((double)file_size / piece_size);
         LOGGER.debug("I am expecting [" + num_pieces + "] pieces to save in [" + path + "].");
         index_to_piece = new HashMap<>();
@@ -57,10 +65,28 @@ public class FileProcessor
                 init_pieces(path);
 
             } else {
-                throw new IOException("hasfile = 1 but no file found! path=" + path);
+                // LOGGER.warn("hasfile = 1 but no file found! path=" + path);
+                String from_root_path = pwd + "/" + filename;
+                File ffroot = new File(from_root_path);
+                if (ffroot.exists()) {
+                    copy_file(from_root_path, path);
+                } else {
+                    throw new IOException("hasfile = 1 but no file found! path=" + from_root_path);
+                }
             }
 
         } 
+    }
+
+    private void copy_file(String from, String to) throws IOException
+    {
+        Path fp = Paths.get(from);
+        Path tp = Paths.get(to);
+        CopyOption[] options = new CopyOption[] {
+            StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.COPY_ATTRIBUTES
+        };
+        Files.copy(fp, tp, options);
     }
 
     public byte[] get_piece(int idx)
@@ -87,7 +113,7 @@ public class FileProcessor
                 // Write the file
                 LOGGER.debug(String.format("TRANSFER COMPLETE! Writing to path %s", path));
                 byte[] all_pieces = cram_pieces();
-                Path p = Paths.get(path);;
+                Path p = Paths.get(path);
                 Files.write(p, all_pieces);
                 return Constants.FILE_COMPLETE;
             } else {
