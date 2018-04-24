@@ -226,9 +226,8 @@ public class BitTorrentProtocol implements MessageListener
     }
 
     private void update_peer_map(BitField bf) {
-       int from_id = bf.getpeerId();
-       
-       peer_to_have_field.put(from_id, bf.getBitSet());
+        int from_id = bf.getpeerId();
+        peer_to_have_field.put(from_id, bf.getBitSet());
     }
 
     private void update_peer_map(Have h) {
@@ -325,8 +324,10 @@ public class BitTorrentProtocol implements MessageListener
         int from_id = hs.getpeerId();
         
         // Add peer's bitfield assuming it is empty, since empty peers won't send me anything.
-        BitField theirs = new BitField(from_id, new BitSet(pieces));
-        update_peer_map(theirs);
+        if (!peer_to_have_field.containsKey(from_id)) {
+            BitField theirs = new BitField(from_id, new BitSet(pieces));
+            update_peer_map(theirs);
+        }
 
         // create my bitfield & send
         BitField bf = new BitField(from_id, have_field);
