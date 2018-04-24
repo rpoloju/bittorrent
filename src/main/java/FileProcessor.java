@@ -63,7 +63,6 @@ public class FileProcessor
                     LOGGER.error("File found but tracker's file size is set wrong!");
                     throw new IOException("real_pieces != given num_pieces )");
                 }
-                init_pieces(path);
 
             } else {
                 // LOGGER.warn("hasfile = 1 but no file found! path=" + path);
@@ -75,6 +74,8 @@ public class FileProcessor
                     throw new IOException("hasfile = 1 but no file found! path=" + from_root_path);
                 }
             }
+
+            init_pieces(path);
 
         } 
     }
