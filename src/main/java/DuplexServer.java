@@ -312,7 +312,13 @@ public class DuplexServer extends Thread implements Runnable
         private void test_queue(SocketChannel sc) throws IOException {
             ByteBuffer buf = ByteBuffer.allocate(4);
             buf.clear();
-            sc.read(buf);
+            int res = sc.read(buf);
+            if (res == -1) {
+                // Hit EOF, send kill signal. 
+                sc.close();
+                parent.clean_socket(hostname, port);
+                return;
+            }
             byte[] header = buf.array();
             String header_maybe = new String(header);
             if (header_maybe.equalsIgnoreCase("P2PF")) {
@@ -333,7 +339,7 @@ public class DuplexServer extends Thread implements Runnable
                 }
             } else {
                 // Got another type
-                header[0] = (byte) 0; // Undo hack
+                // header[0] = (byte) 0; // Undo hack
                 int message_length = ByteBuffer.wrap(header).getInt();
                 if (message_length == 0) 
                     return;
@@ -373,15 +379,6 @@ public class DuplexServer extends Thread implements Runnable
                 } else {
                     read_queue(channelClient);
                 }
-
-                // if (buffer.get(0) == 0) { // Maybe change this so dont need hack
-                    // LOGGER.debug("Nothing to read. Channel closed.");
-                    // channelClient.close();
-                    // parent.clean_socket(hostname, port);
-                    // return;
-                // }    
-                
-                // parent.process_message(hostname, port, buffer);
 
             } else if (key.isWritable()) {
                 // SocketChannel channelClient = (SocketChannel) key.channel();
