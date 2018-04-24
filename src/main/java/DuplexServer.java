@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -6,6 +7,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
@@ -143,6 +145,12 @@ public class DuplexServer extends Thread implements Runnable
         }
     }
 
+    // private void process_handshake(String hostname, int port, byte[] handshake) {
+    //     int peer_id = ByteBuffer.wrap(Arrays.copyOfRange(handshake, 0, 4)).getInt();
+    //     HandShake hs = new HandShake(peer_id);
+    //     resolve_socket(hostname, port, peer_id);
+    // }
+
     // Handle the stream of one peer.
     private void process_message(String hostname, int port, ByteBuffer buffer) throws IOException
     {
@@ -247,7 +255,8 @@ public class DuplexServer extends Thread implements Runnable
         int port;
         byte[] temp_buffer;
         SingletonCommon common_cfg;
-        // ArrayList<ByteBuffer> write_queue;
+        int bytes_left;
+        byte[] read_queue;
 
         public ClientHandler(SocketChannel sc, DuplexServer dp) throws IOException {
             parent = dp;    
@@ -271,14 +280,81 @@ public class DuplexServer extends Thread implements Runnable
     
                         while (it.hasNext()) {
                             SelectionKey key = it.next();
-    
-                            handleKey(key);
+                            
+                            try {
+                                handleKey(key);
+                            } catch (IOException e) {
+                                LOGGER.warn(e.getMessage());
+                            }
     
                             it.remove();
                         }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
+                }
+            }
+        }
+
+        private void read_queue(SocketChannel sc) throws IOException {
+            LOGGER.debug("Peer is queueing message payload.");
+            
+            ByteBuffer temp = ByteBuffer.allocate(bytes_left);
+            int bytes_read = sc.read(temp);
+            System.arraycopy(temp.array(), 0, read_queue, read_queue.length - bytes_left, bytes_read);
+            bytes_left -= bytes_read;
+            if (bytes_left == 0) {
+                LOGGER.debug("Peer is firing the message payload.");
+                parent.process_message(hostname, port, ByteBuffer.wrap(read_queue));
+            }
+        }
+
+        private void test_queue(SocketChannel sc) throws IOException {
+            ByteBuffer buf = ByteBuffer.allocate(4);
+            buf.clear();
+            sc.read(buf);
+            byte[] header = buf.array();
+            String header_maybe = new String(header);
+            if (header_maybe.equalsIgnoreCase("P2PF")) {
+                // Expecting handshake
+                ByteBuffer body = ByteBuffer.allocate(28);
+                int bytes_read = sc.read(body);
+                if (bytes_read < 28) {
+                    bytes_left = 28 - bytes_read;
+                    read_queue = ByteBuffer.allocate(32).array();
+                    System.arraycopy(header, 0, read_queue, 0, header.length);   
+                    System.arraycopy(body.array(), 0, read_queue, 4, bytes_read);                 
+
+                } else {
+                    byte[] handshake = ByteBuffer.allocate(32).array();
+                    System.arraycopy(header, 0, handshake, 0, header.length);
+                    System.arraycopy(body.array(), 0, handshake, 4, bytes_read);
+                    parent.process_message(hostname, port, ByteBuffer.wrap(handshake));
+                }
+            } else {
+                // Got another type
+                header[0] = (byte) 0; // Undo hack
+                int message_length = ByteBuffer.wrap(header).getInt();
+                if (message_length == 0) 
+                    return;
+                    
+                if (message_length > Math.pow(2, 32) || message_length < 0)
+                {
+                    LOGGER.error("Malformed message received: message_length=" + message_length);
+                    return;
+                }
+                ByteBuffer body = ByteBuffer.allocate(message_length);
+                int bytes_read = sc.read(body);
+                if (bytes_read < message_length) {
+                    bytes_left = message_length - bytes_read;
+                    read_queue = ByteBuffer.allocate(message_length + 4).array();
+                    System.arraycopy(header, 0, read_queue, 0, header.length);
+                    System.arraycopy(body.array(), 0, read_queue, 4, bytes_read);
+                } else {
+                    byte[] message = ByteBuffer.allocate(message_length + 4).array();
+                    System.arraycopy(header, 0, message, 0, header.length);
+                    System.arraycopy(body.array(), 0, message, 4, bytes_read);
+                    parent.process_message(hostname, port, ByteBuffer.wrap(message));
                 }
             }
         }
@@ -290,17 +366,22 @@ public class DuplexServer extends Thread implements Runnable
                     LOGGER.debug("Channel terminated by client");
                     parent.clean_socket(hostname, port);                    
                 }
-                ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize * 2);
-                buffer.clear();
-                channelClient.read(buffer);
-                if (buffer.get(0) == 0) { // Maybe change this so dont need hack
-                    LOGGER.debug("Nothing to read. Channel closed.");
-                    channelClient.close();
-                    parent.clean_socket(hostname, port);
-                    return;
-                }    
-                // channelClient.write(ByteBuffer.wrap(new String("Hello").getBytes()));
-                parent.process_message(hostname, port, buffer);
+                // ByteBuffer buffer = ByteBuffer.allocate(common_cfg.PieceSize * 2);
+                // First get the header
+                if (bytes_left == 0) {
+                    test_queue(channelClient);
+                } else {
+                    read_queue(channelClient);
+                }
+
+                // if (buffer.get(0) == 0) { // Maybe change this so dont need hack
+                    // LOGGER.debug("Nothing to read. Channel closed.");
+                    // channelClient.close();
+                    // parent.clean_socket(hostname, port);
+                    // return;
+                // }    
+                
+                // parent.process_message(hostname, port, buffer);
 
             } else if (key.isWritable()) {
                 // SocketChannel channelClient = (SocketChannel) key.channel();
