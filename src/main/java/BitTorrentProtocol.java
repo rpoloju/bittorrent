@@ -506,6 +506,10 @@ public class BitTorrentProtocol implements MessageListener
             interested_peers.remove(Integer.valueOf(peer_id));
         }
 
+        if (preferred_peers.contains(Integer.valueOf(peer_id))) {
+            preferred_peers.remove(Integer.valueOf(peer_id));
+        }
+
         if (peer_to_have_field.get(peer_id) != null) {
             peer_to_have_field.remove(peer_id);
         }
